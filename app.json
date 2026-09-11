@@ -1,0 +1,73 @@
+{
+  "expo": {
+    "name": "Reservas Deportivas Villaguay",
+    "slug": "reservas-deportivas-villaguay",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "reservasdeportivas",
+    "userInterfaceStyle": "dark",
+    "android": {
+      "package": "com.villaguay.reservasdeportivas",
+      "adaptiveIcon": {
+        "backgroundColor": "#121212",
+        "foregroundImage": "./assets/icon.png"
+      },
+      "permissions": [
+        "CAMERA",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "com.villaguay.reservasdeportivas",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Esta app requiere la cámara para escanear el código QR en la entrada de las canchas.",
+        "NSLocationWhenInUseUsageDescription": "Esta app necesita tu ubicación para calcular la distancia a los predios deportivos.",
+        "NSFaceIDUsageDescription": "Esta app utiliza Face ID para el reingreso seguro del encargado."
+      }
+    },
+    "web": {
+      "output": "static",
+      "favicon": "./assets/icon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#121212",
+          "image": "./assets/icon.png",
+          "imageWidth": 120
+        }
+      ],
+      "expo-secure-store",
+      "expo-sqlite",
+      "expo-video",
+      "expo-audio",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permite acceder a la cámara para escanear códigos QR en la puerta."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Permite mostrar tu distancia hacia los predios deportivos en el mapa."
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Permite autenticarte rápidamente mediante huella o rostro."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
