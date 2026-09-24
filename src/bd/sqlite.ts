@@ -9,22 +9,24 @@ export const inicializarBaseDeDatos = async (): Promise<void> => {
   if (Platform.OS === 'web') return;
   try {
     const SQLite = require('expo-sqlite');
-    dbInstance = await SQLite.openDatabaseAsync('reservas_vgy.db');
-    await dbInstance.execAsync(`
-      PRAGMA journal_mode = WAL;
-      CREATE TABLE IF NOT EXISTS reservas (
-        id TEXT PRIMARY KEY NOT NULL,
-        turnoId TEXT NOT NULL,
-        espacioId TEXT NOT NULL,
-        usuarioId TEXT NOT NULL,
-        cantidadPersonas INTEGER NOT NULL,
-        codigoQr TEXT NOT NULL,
-        estado TEXT NOT NULL,
-        ingresoEn TEXT,
-        creadaEn TEXT NOT NULL,
-        cancelableHasta TEXT NOT NULL
-      );
-    `);
+    if (SQLite && typeof SQLite.openDatabaseAsync === 'function') {
+      dbInstance = await SQLite.openDatabaseAsync('reservas_vgy.db');
+      await dbInstance.execAsync(`
+        PRAGMA journal_mode = WAL;
+        CREATE TABLE IF NOT EXISTS reservas (
+          id TEXT PRIMARY KEY NOT NULL,
+          turnoId TEXT NOT NULL,
+          espacioId TEXT NOT NULL,
+          usuarioId TEXT NOT NULL,
+          cantidadPersonas INTEGER NOT NULL,
+          codigoQr TEXT NOT NULL,
+          estado TEXT NOT NULL,
+          ingresoEn TEXT,
+          creadaEn TEXT NOT NULL,
+          cancelableHasta TEXT NOT NULL
+        );
+      `);
+    }
   } catch (error) {
     console.warn('SQLite no disponible en este entorno, usando fallback en memoria:', error);
   }
