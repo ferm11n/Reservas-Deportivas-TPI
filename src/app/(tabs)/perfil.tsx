@@ -107,7 +107,7 @@ export default function ProfileScreen() {
           <Text style={styles.tituloSeccion}>MÓDULO DE ADMINISTRACIÓN</Text>
           <TouchableOpacity
             style={styles.botonModuloAdmin}
-            onPress={() => router.push('/admin/index' as any)}
+            onPress={() => router.push('/admin' as any)}
           >
             <Ionicons name="settings-outline" size={22} color="#FFF" />
             <Text style={styles.textoBotonModulo}>Panel Admin (Bloqueos, Fijas, Precios)</Text>
