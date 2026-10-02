@@ -1,10 +1,34 @@
 import { Platform } from 'react-native';
+import Constants, { ExecutionEnvironment } from 'expo-constants';
+
+const getNotificationsModule = () => {
+  if (Platform.OS === 'web') return null;
+
+  // Evitar llamar a require('expo-notifications') en Expo Go (SDK 53+)
+  const esExpoGo =
+    Constants.executionEnvironment === ExecutionEnvironment.StoreClient ||
+    (Constants as any).appOwnership === 'expo';
+
+  if (esExpoGo) {
+    return null;
+  }
+
+  try {
+    const Notifications = require('expo-notifications');
+    if (Notifications && typeof Notifications.scheduleNotificationAsync === 'function') {
+      return Notifications;
+    }
+  } catch (e) {
+    // Captura silenciosa para entornos de desarrollo
+  }
+  return null;
+};
 
 export const useNotifications = () => {
   const solicitarPermisosNotificaciones = async (): Promise<boolean> => {
-    if (Platform.OS === 'web') return true;
+    const Notifications = getNotificationsModule();
+    if (!Notifications) return false;
     try {
-      const Notifications = require('expo-notifications');
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
       if (existingStatus !== 'granted') {
@@ -23,10 +47,13 @@ export const useNotifications = () => {
     horaInicio: string,
     segundosSimulados: number = 5
   ) => {
-    if (Platform.OS === 'web') return;
+    const Notifications = getNotificationsModule();
+    if (!Notifications) return;
+
     try {
-      const Notifications = require('expo-notifications');
-      await solicitarPermisosNotificaciones();
+      const tienePermiso = await solicitarPermisosNotificaciones();
+      if (!tienePermiso) return;
+
       await Notifications.scheduleNotificationAsync({
         content: {
           title: '⚽ Recordatorio de Turno Deportivo',
@@ -40,14 +67,15 @@ export const useNotifications = () => {
         },
       });
     } catch (e) {
-      console.warn('Error programando notificaciones:', e);
+      console.warn('Notificaciones no disponibles:', e);
     }
   };
 
   const notificarCancelacion = async (nombreCancha: string, motivo: string) => {
-    if (Platform.OS === 'web') return;
+    const Notifications = getNotificationsModule();
+    if (!Notifications) return;
+
     try {
-      const Notifications = require('expo-notifications');
       await Notifications.scheduleNotificationAsync({
         content: {
           title: '🌧️ Suspensión / Aviso de Turno',
@@ -57,14 +85,15 @@ export const useNotifications = () => {
         trigger: null,
       });
     } catch (e) {
-      console.warn('Error enviando notificación:', e);
+      console.warn('Notificaciones no disponibles:', e);
     }
   };
 
   const notificarFavoritoLiberado = async (nombreCancha: string, hora: string) => {
-    if (Platform.OS === 'web') return;
+    const Notifications = getNotificationsModule();
+    if (!Notifications) return;
+
     try {
-      const Notifications = require('expo-notifications');
       await Notifications.scheduleNotificationAsync({
         content: {
           title: '⭐ ¡Turno Liberado en tu Cancha Favorita!',
@@ -74,7 +103,7 @@ export const useNotifications = () => {
         trigger: null,
       });
     } catch (e) {
-      console.warn('Error enviando notificación:', e);
+      console.warn('Notificaciones no disponibles:', e);
     }
   };
 

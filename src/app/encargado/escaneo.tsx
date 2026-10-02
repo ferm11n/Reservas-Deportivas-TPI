@@ -114,18 +114,19 @@ export default function AttendantScanScreen() {
             <Text style={styles.webCamText}>Modo Simulación de Escáner QR</Text>
           </View>
         ) : (
-          <CameraView
-            style={styles.camera}
-            facing="back"
-            onBarcodeScanned={escaneando ? handleBarcodeScanned : undefined}
-            barcodeScannerSettings={{
-              barcodeTypes: ['qr'],
-            }}
-          >
+          <>
+            <CameraView
+              style={styles.camera}
+              facing="back"
+              onBarcodeScanned={escaneando ? handleBarcodeScanned : undefined}
+              barcodeScannerSettings={{
+                barcodeTypes: ['qr'],
+              }}
+            />
             <View style={styles.overlayFrame}>
               <View style={styles.squareMarker} />
             </View>
-          </CameraView>
+          </>
         )}
       </View>
 
@@ -201,7 +202,11 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   overlayFrame: {
-    flex: 1,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0,0,0,0.4)',

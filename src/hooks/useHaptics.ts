@@ -1,10 +1,23 @@
 import { Platform } from 'react-native';
 
+const getHapticsModule = () => {
+  if (Platform.OS === 'web') return null;
+  try {
+    const Haptics = require('expo-haptics');
+    if (Haptics && typeof Haptics.notificationAsync === 'function') {
+      return Haptics;
+    }
+  } catch (e) {
+    // Fallback silencioso si no está disponible el módulo nativo
+  }
+  return null;
+};
+
 export const useHaptics = () => {
   const vibrarExito = async () => {
-    if (Platform.OS === 'web') return;
+    const Haptics = getHapticsModule();
+    if (!Haptics) return;
     try {
-      const Haptics = require('expo-haptics');
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e) {
       console.warn('Haptics no disponible:', e);
@@ -12,9 +25,9 @@ export const useHaptics = () => {
   };
 
   const vibrarError = async () => {
-    if (Platform.OS === 'web') return;
+    const Haptics = getHapticsModule();
+    if (!Haptics) return;
     try {
-      const Haptics = require('expo-haptics');
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } catch (e) {
       console.warn('Haptics no disponible:', e);
@@ -22,9 +35,9 @@ export const useHaptics = () => {
   };
 
   const vibrarSeleccion = async () => {
-    if (Platform.OS === 'web') return;
+    const Haptics = getHapticsModule();
+    if (!Haptics) return;
     try {
-      const Haptics = require('expo-haptics');
       await Haptics.selectionAsync();
     } catch (e) {
       console.warn('Haptics no disponible:', e);
