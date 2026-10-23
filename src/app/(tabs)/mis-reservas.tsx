@@ -9,8 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { Reserva, Espacio } from '../../tipos';
-import { obtenerReservasOffline } from '../../bd/sqlite';
-import { obtenerEspacios, cancelarReserva } from '../../servicios/reservas';
+import { obtenerEspacios, obtenerMisReservas, cancelarReserva } from '../../servicios/reservas';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -36,8 +35,13 @@ export default function MyReservationsScreen() {
     }
 
     if (usuario) {
-      const lista = await obtenerReservasOffline(usuario.id);
-      setReservas(lista);
+      const resReservas = await obtenerMisReservas(usuario.id, tabActiva);
+      if ('datos' in resReservas) {
+        setReservas(resReservas.datos);
+      } else {
+        setReservas([]);
+        Alert.alert('No se pudieron cargar las reservas', resReservas.error.mensaje);
+      }
     } else {
       setReservas([]);
     }
@@ -58,15 +62,18 @@ export default function MyReservationsScreen() {
         text: 'Sí, Cancelar',
         style: 'destructive',
         onPress: async () => {
-          await cancelarReserva(reserva.id);
-          Alert.alert('Reserva Cancelada', 'La reserva ha sido cancelada correctamente.');
-          cargarDatos();
+          const resultado = await cancelarReserva(reserva.id);
+          if ('error' in resultado) {
+            Alert.alert('No se pudo cancelar', resultado.error.mensaje);
+          } else {
+            Alert.alert('Reserva Cancelada', 'La reserva ha sido cancelada correctamente.');
+            cargarDatos();
+          }
         },
       },
     ]);
   };
 
-  const ahora = new Date().toISOString();
   const reservasFiltradas = reservas.filter((r) => {
     if (tabActiva === 'proximas') {
       return r.estado === 'confirmada';

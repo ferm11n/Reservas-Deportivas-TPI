@@ -8,14 +8,26 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Espacio } from '../../tipos';
-import { obtenerEspacioPorId } from '../../servicios/reservas';
+import { obtenerEspacioPorId, subirArchivo } from '../../servicios/reservas';
 import { VideoViewer } from '../../componentes/VideoViewer';
+import { GrabadorObservacionAudio } from '../../componentes/GrabadorObservacionAudio';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { Directory, File, Paths } from 'expo-file-system';
+import { getKVItem, setKVItem } from '../../bd/kvStore';
+
+interface ReporteCancha {
+  id: string;
+  tipo: 'imagen' | 'audio';
+  localUri: string;
+  url: string | null;
+  nombre: string;
+  mime: string;
+  creadoEn: string;
+}
 
 export default function SpaceDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -23,50 +35,136 @@ export default function SpaceDetailScreen() {
 
   const [espacio, setEspacio] = useState<Espacio | null>(null);
   const [cargando, setCargando] = useState(true);
-  const [fotosAdicionales, setFotosAdicionales] = useState<string[]>([]);
+  const [reportes, setReportes] = useState<ReporteCancha[]>([]);
 
   useEffect(() => {
-    if (id) cargarDetalle();
+    if (!id) return;
+    let activo = true;
+    const cargarDetalle = async () => {
+      setCargando(true);
+      const res = await obtenerEspacioPorId(id);
+      if (activo) {
+        if ('datos' in res) {
+          setEspacio(res.datos);
+        } else {
+          Alert.alert('No se pudo cargar la cancha', res.error.mensaje);
+        }
+        setCargando(false);
+      }
+    };
+    void cargarDetalle();
+    return () => {
+      activo = false;
+    };
   }, [id]);
 
-  const cargarDetalle = async () => {
-    setCargando(true);
-    const res = await obtenerEspacioPorId(id);
-    if ('datos' in res) {
-      setEspacio(res.datos);
-    }
-    setCargando(false);
+  useEffect(() => {
+    let activo = true;
+    const cargarReportes = async () => {
+      try {
+        const guardados = await getKVItem(`reportes-cancha:${id}`);
+        if (activo && guardados) setReportes(JSON.parse(guardados) as ReporteCancha[]);
+      } catch (error) {
+        console.error('Error leyendo los reportes locales de la cancha:', error);
+        Alert.alert('No se pudieron cargar los reportes guardados', 'Los reportes locales no se pudieron leer.');
+      }
+    };
+    if (id) cargarReportes();
+    return () => {
+      activo = false;
+    };
+  }, [id]);
+
+  const guardarReportes = async (nuevosReportes: ReporteCancha[]) => {
+    await setKVItem(`reportes-cancha:${id}`, JSON.stringify(nuevosReportes));
+    setReportes(nuevosReportes);
   };
 
-  const handleTomarFotoEstado = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permiso Denegado', 'Se requiere acceso a la galería para seleccionar una foto.');
+  const subirReporte = async (reporte: ReporteCancha, reportesActuales = reportes) => {
+    const res = await subirArchivo(reporte.localUri, reporte.nombre, reporte.mime);
+    if ('error' in res) {
+      Alert.alert(
+        'Archivo guardado en el dispositivo',
+        `No se pudo subir a la API: ${res.error.mensaje}. Podés reintentar cuando vuelva la conexión.`
+      );
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-    });
+    const actualizados = reportesActuales.map((actual) =>
+      actual.id === reporte.id ? { ...actual, url: res.datos.url } : actual
+    );
+    await guardarReportes(actualizados);
+    Alert.alert('Reporte subido', 'El archivo quedó guardado en el dispositivo y en la API.');
+  };
 
-    if (!result.canceled && result.assets.length > 0) {
-      const nuevaUri = result.assets[0].uri;
+  const reintentarSubida = async (reporte: ReporteCancha) => {
+    await subirReporte(reporte);
+  };
 
-      // Demostración de expo-file-system (Paths / Directory API)
-      if (Platform.OS !== 'web') {
-        try {
-          const { Paths, Directory, File } = require('expo-file-system');
-          const cacheDir = Paths.cache;
-          console.log('expo-file-system cache directory path:', cacheDir);
-        } catch (e) {
-          console.warn('expo-file-system new API check:', e);
-        }
+  const handleTomarFotoEstado = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permiso denegado', 'Se requiere acceso a la galería para seleccionar una foto.');
+        return;
       }
 
-      setFotosAdicionales((prev) => [...prev, nuevaUri]);
-      Alert.alert('¡Foto Agregada!', 'Se guardó la foto del estado de la cancha en el dispositivo.');
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+      });
+      if (result.canceled || result.assets.length === 0) return;
+
+      const asset = result.assets[0];
+      const mime = asset.mimeType || 'image/jpeg';
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(mime)) {
+        Alert.alert('Formato no compatible', 'Elegí una foto en formato JPG, PNG o WEBP para subirla.');
+        return;
+      }
+      const tamanio = asset.fileSize ?? new File(asset.uri).info().size;
+      if (tamanio && tamanio > 5 * 1024 * 1024) {
+        Alert.alert('La foto supera el límite', 'La API acepta imágenes de hasta 5 MB. Elegí una foto más liviana.');
+        return;
+      }
+      const extension = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : 'jpg';
+      const nombre = `foto-${Date.now()}.${extension}`;
+      const directorio = new Directory(Paths.document, 'reportes-cancha');
+      if (!directorio.exists) directorio.create({ intermediates: true, idempotent: true });
+      const archivoLocal = new File(directorio, nombre);
+      await new File(asset.uri).copy(archivoLocal);
+
+      const reporte: ReporteCancha = {
+        id: `${Date.now()}-${nombre}`,
+        tipo: 'imagen',
+        localUri: archivoLocal.uri,
+        url: null,
+        nombre,
+        mime,
+        creadoEn: new Date().toISOString(),
+      };
+      const nuevosReportes = [reporte, ...reportes];
+      await guardarReportes(nuevosReportes);
+      await subirReporte(reporte, nuevosReportes);
+    } catch (error) {
+      console.error('Error al guardar o subir la foto de la cancha:', error);
+      Alert.alert('No se pudo guardar la foto', 'Revisá el acceso a la galería y el almacenamiento del dispositivo.');
     }
+  };
+
+  const handleAudioGrabado = async (uri: string) => {
+    const nombre = `observacion-${Date.now()}.m4a`;
+    const reporte: ReporteCancha = {
+      id: `${Date.now()}-${nombre}`,
+      tipo: 'audio',
+      localUri: uri,
+      url: null,
+      nombre,
+      mime: 'audio/mp4',
+      creadoEn: new Date().toISOString(),
+    };
+    const nuevosReportes = [reporte, ...reportes];
+    await guardarReportes(nuevosReportes);
+    await subirReporte(reporte, nuevosReportes);
   };
 
   if (cargando) {
@@ -147,7 +245,7 @@ export default function SpaceDetailScreen() {
         <Text style={styles.textoReglas}>• El pago se realiza en la entrada al encargado.</Text>
       </View>
 
-      {/* Galería Adicional y Subida de Fotos (expo-image-picker) */}
+      {/* Reporte fotográfico persistido y subido a la API */}
       <View style={styles.seccionFotos}>
         <View style={styles.headerFotos}>
           <Text style={styles.tituloSeccion}>FOTOS DEL ESTADO DE CANCHA</Text>
@@ -157,18 +255,45 @@ export default function SpaceDetailScreen() {
           </TouchableOpacity>
         </View>
 
-        {fotosAdicionales.length > 0 ? (
+        {reportes.some((reporte) => reporte.tipo === 'imagen') ? (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.scrollFotos}>
-            {fotosAdicionales.map((uri, idx) => (
-              <Image key={idx} source={{ uri }} style={styles.thumbFoto} />
+            {reportes.filter((reporte) => reporte.tipo === 'imagen').map((reporte) => (
+              <View key={reporte.id} style={styles.fotoReporte}>
+                <Image source={{ uri: reporte.localUri }} style={styles.thumbFoto} />
+                {reporte.url ? (
+                  <Text style={styles.estadoSubida}>Subida</Text>
+                ) : (
+                  <TouchableOpacity onPress={() => reintentarSubida(reporte)}>
+                    <Text style={styles.reintentarSubida}>Reintentar</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             ))}
           </ScrollView>
         ) : (
           <Text style={styles.textoSubirObs}>
-            Podés subir fotos desde tu galería para reportar el estado de la cancha (usando expo-image-picker y expo-file-system).
+            Elegí una foto para guardarla en el dispositivo y subirla al servidor.
           </Text>
         )}
       </View>
+
+      <GrabadorObservacionAudio
+        key={id}
+        audioInicial={reportes.find((reporte) => reporte.tipo === 'audio')?.localUri}
+        onAudioGrabado={handleAudioGrabado}
+      />
+      {reportes.some((reporte) => reporte.tipo === 'audio') && (
+        <View style={styles.estadoAudio}>
+          <Text style={styles.textoEstadoAudio}>
+            {reportes.filter((reporte) => reporte.tipo === 'audio' && reporte.url).length} nota(s) de audio subida(s)
+          </Text>
+          {reportes.filter((reporte) => reporte.tipo === 'audio' && !reporte.url).map((reporte) => (
+            <TouchableOpacity key={reporte.id} onPress={() => reintentarSubida(reporte)}>
+              <Text style={styles.textoAudioPendiente}>Reintentar subida de {reporte.nombre}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
 
       {/* Botón Ver Grilla de Turnos */}
       <TouchableOpacity
@@ -313,6 +438,34 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
     borderRadius: 8,
+  },
+  fotoReporte: {
+    width: 100,
+    alignItems: 'center',
+    gap: 4,
+  },
+  estadoSubida: {
+    color: '#66BB6A',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  reintentarSubida: {
+    color: '#FFD54F',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  estadoAudio: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    gap: 4,
+  },
+  textoEstadoAudio: {
+    color: '#66BB6A',
+    fontSize: 12,
+  },
+  textoAudioPendiente: {
+    color: '#FFD54F',
+    fontSize: 12,
   },
   textoSubirObs: {
     color: '#777',

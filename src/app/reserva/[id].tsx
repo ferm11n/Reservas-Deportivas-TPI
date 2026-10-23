@@ -10,8 +10,7 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Reserva, Espacio } from '../../tipos';
-import { obtenerReservasOffline } from '../../bd/sqlite';
-import { obtenerEspacioPorId, cancelarReserva } from '../../servicios/reservas';
+import { obtenerReserva, obtenerEspacioPorId, cancelarReserva } from '../../servicios/reservas';
 import { QrViewer } from '../../componentes/QrViewer';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,12 +31,13 @@ export default function ReservationDetailScreen() {
   const cargarDetalle = async () => {
     setCargando(true);
     if (usuario) {
-      const lista = await obtenerReservasOffline(usuario.id);
-      const resEncontrada = lista.find((r) => r.id === id);
-      if (resEncontrada) {
-        setReserva(resEncontrada);
-        const resEsp = await obtenerEspacioPorId(resEncontrada.espacioId);
+      const resultado = await obtenerReserva(id, usuario.id);
+      if ('datos' in resultado) {
+        setReserva(resultado.datos);
+        const resEsp = await obtenerEspacioPorId(resultado.datos.espacioId);
         if ('datos' in resEsp) setEspacio(resEsp.datos);
+      } else {
+        setReserva(null);
       }
     }
     setCargando(false);
@@ -58,9 +58,13 @@ export default function ReservationDetailScreen() {
         text: 'Sí, Cancelar',
         style: 'destructive',
         onPress: async () => {
-          await cancelarReserva(reserva.id);
-          Alert.alert('Reserva Cancelada', 'La reserva ha sido cancelada.');
-          cargarDetalle();
+          const resultado = await cancelarReserva(reserva.id);
+          if ('error' in resultado) {
+            Alert.alert('No se pudo cancelar', resultado.error.mensaje);
+          } else {
+            Alert.alert('Reserva Cancelada', 'La reserva ha sido cancelada.');
+            cargarDetalle();
+          }
         },
       },
     ]);

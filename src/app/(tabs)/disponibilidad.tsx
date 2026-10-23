@@ -11,6 +11,7 @@ import {
 import { Espacio, Turno } from '../../tipos';
 import { obtenerEspacios, obtenerGrillaTurnos, crearReserva } from '../../servicios/reservas';
 import { GrillaTurnos } from '../../componentes/GrillaTurnos';
+import { fechaLocal } from '../../servicios/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../hooks/useNotifications';
@@ -30,6 +31,7 @@ export default function AvailabilityScreen() {
   const [turnoSeleccionado, setTurnoSeleccionado] = useState<Turno | null>(null);
 
   const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
   const [procesandoReserva, setProcesandoReserva] = useState(false);
 
   useEffect(() => {
@@ -51,7 +53,7 @@ export default function AvailabilityScreen() {
     for (let i = 0; i < 7; i++) {
       const d = new Date(hoy);
       d.setDate(hoy.getDate() + i);
-      const iso = d.toISOString().split('T')[0];
+      const iso = fechaLocal(d);
       const diaNom = i === 0 ? 'HOY' : diasSemana[d.getDay()];
       const label = `${d.getDate()}/${d.getMonth() + 1}`;
       lista.push({ fechaStr: iso, label, diaNombre: diaNom });
@@ -73,10 +75,13 @@ export default function AvailabilityScreen() {
 
   const cargarGrilla = async () => {
     setCargando(true);
+    setErrorCarga(null);
     setTurnoSeleccionado(null);
     const res = await obtenerGrillaTurnos(espacioIdSeleccionado, fechaSeleccionada);
     if ('datos' in res) {
       setTurnos(res.datos);
+    } else {
+      setErrorCarga(res.error.mensaje);
     }
     setCargando(false);
   };
@@ -113,8 +118,6 @@ export default function AvailabilityScreen() {
             setProcesandoReserva(true);
             const res = await crearReserva(
               turnoSeleccionado.id,
-              espacioIdSeleccionado,
-              usuario.id,
               espacioActual.capacidad
             );
             setProcesandoReserva(false);
@@ -208,6 +211,13 @@ export default function AvailabilityScreen() {
           <View style={styles.centrado}>
             <ActivityIndicator size="large" color="#4CAF50" />
             <Text style={styles.textoCargando}>Cargando turnos de la jornada...</Text>
+          </View>
+        ) : errorCarga ? (
+          <View style={styles.centrado}>
+            <Text style={styles.textoErrorCarga}>{errorCarga}</Text>
+            <TouchableOpacity style={styles.botonReintentarCarga} onPress={cargarGrilla}>
+              <Text style={styles.textoBotonReintentarCarga}>Reintentar</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <GrillaTurnos
@@ -354,6 +364,22 @@ const styles = StyleSheet.create({
     color: '#888888',
     fontSize: 14,
     marginTop: 10,
+  },
+  textoErrorCarga: {
+    color: '#FF8A80',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  botonReintentarCarga: {
+    marginTop: 12,
+    backgroundColor: '#2E7D32',
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  textoBotonReintentarCarga: {
+    color: '#FFF',
+    fontWeight: '700',
   },
   footerSticky: {
     position: 'absolute',

@@ -19,16 +19,17 @@ export default function RegisterScreen() {
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
   const [telefono, setTelefono] = useState('');
+  const [contrasena, setContrasena] = useState('');
   const [cargando, setCargando] = useState(false);
 
   const handleRegister = async () => {
-    if (!nombre || !email || !telefono) {
+    if (!nombre.trim() || !email.trim() || !telefono.trim() || !contrasena) {
       Alert.alert('Campos incompletos', 'Por favor completá todos los campos.');
       return;
     }
 
     setCargando(true);
-    const res = await registrarUsuario(nombre, email, telefono);
+    const res = await registrarUsuario(nombre, email, contrasena, telefono);
     setCargando(false);
 
     if ('error' in res) {
@@ -74,6 +75,17 @@ export default function RegisterScreen() {
           keyboardType="phone-pad"
           value={telefono}
           onChangeText={setTelefono}
+        />
+
+        <Text style={styles.label}>Contraseña</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Mínimo 8 caracteres"
+          placeholderTextColor="#666"
+          autoCapitalize="none"
+          secureTextEntry
+          value={contrasena}
+          onChangeText={setContrasena}
         />
 
         <TouchableOpacity

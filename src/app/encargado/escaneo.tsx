@@ -3,6 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
+  ScrollView,
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
@@ -10,20 +11,24 @@ import {
   Platform,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import { escanearQrReserva } from '../../servicios/reservas';
+import { Espacio, Reserva } from '../../tipos';
+import { marcarAusente, obtenerEspacios, obtenerReservasDeTodos, registrarIngreso } from '../../servicios/reservas';
+import { fechaLocal } from '../../servicios/api';
 import { useHaptics } from '../../hooks/useHaptics';
-import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function AttendantScanScreen() {
-  const { verificarBiometria } = useAuth();
   const { vibrarExito, vibrarError } = useHaptics();
   const [permission, requestPermission] = useCameraPermissions();
 
-  const [biometriaOk, setBiometriaOk] = useState(false);
   const [escaneando, setEscaneando] = useState(true);
   const [qrManual, setQrManual] = useState('');
   const [procesando, setProcesando] = useState(false);
+  const [cargandoEspacios, setCargandoEspacios] = useState(true);
+  const [espacios, setEspacios] = useState<Espacio[]>([]);
+  const [espacioId, setEspacioId] = useState('');
+  const [reservas, setReservas] = useState<Reserva[]>([]);
+  const fecha = fechaLocal();
 
   const [resultadoUltimoScan, setResultadoUltimoScan] = useState<{
     exito: boolean;
@@ -32,12 +37,28 @@ export default function AttendantScanScreen() {
   } | null>(null);
 
   useEffect(() => {
-    pedirBiometria();
+    cargarEspacios();
   }, []);
 
-  const pedirBiometria = async () => {
-    const ok = await verificarBiometria();
-    setBiometriaOk(ok);
+  useEffect(() => {
+    if (espacioId) cargarReservas();
+  }, [espacioId]);
+
+  const cargarEspacios = async () => {
+    const res = await obtenerEspacios();
+    if ('datos' in res) {
+      setEspacios(res.datos);
+      setEspacioId(res.datos[0]?.id || '');
+    } else {
+      Alert.alert('No se pudieron cargar las canchas', res.error.mensaje);
+    }
+    setCargandoEspacios(false);
+  };
+
+  const cargarReservas = async () => {
+    const res = await obtenerReservasDeTodos({ fecha, espacioId });
+    if ('datos' in res) setReservas(res.datos);
+    else Alert.alert('No se pudieron cargar las reservas', res.error.mensaje);
   };
 
   const handleBarcodeScanned = async ({ data }: { data: string }) => {
@@ -50,7 +71,12 @@ export default function AttendantScanScreen() {
     setProcesando(true);
     setResultadoUltimoScan(null);
 
-    const res = await escanearQrReserva(codigo, 'todos');
+    if (!espacioId) {
+      setProcesando(false);
+      Alert.alert('Seleccioná una cancha', 'Elegí el espacio donde se valida el ingreso.');
+      return;
+    }
+    const res = await registrarIngreso(codigo, espacioId);
     setProcesando(false);
 
     if ('error' in res) {
@@ -67,20 +93,14 @@ export default function AttendantScanScreen() {
         titulo: '✅ INGRESO VALIDADO CORRECTAMENTE',
         mensaje: `Reserva ${res.datos.id} — Jugador presente registrado a las ${new Date().toLocaleTimeString()}.`,
       });
+      cargarReservas();
     }
   };
 
-  if (!biometriaOk) {
+  if (cargandoEspacios) {
     return (
       <View style={styles.centrado}>
-        <Ionicons name="finger-print-outline" size={64} color="#4CAF50" />
-        <Text style={styles.tituloBiometria}>Verificación de Identidad Requerida</Text>
-        <Text style={styles.subBiometria}>
-          Marcelo, por seguridad debes validar tu identidad biométrica para habilitar el escáner de la puerta.
-        </Text>
-        <TouchableOpacity style={styles.botonReintentarBio} onPress={pedirBiometria}>
-          <Text style={styles.textoBotonBio}>Validar con Huella / Rostro</Text>
-        </TouchableOpacity>
+        <ActivityIndicator size="large" color="#4CAF50" />
       </View>
     );
   }
@@ -89,7 +109,7 @@ export default function AttendantScanScreen() {
     return <View style={styles.container} />;
   }
 
-  if (!permission.granted) {
+  if (Platform.OS !== 'web' && !permission.granted) {
     return (
       <View style={styles.centrado}>
         <Ionicons name="camera-outline" size={56} color="#FFD54F" />
@@ -106,6 +126,23 @@ export default function AttendantScanScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.selectorEspacio}>
+        <Text style={styles.labelManual}>CANCHA DE INGRESO — {fecha}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.listaEspacios}>
+          {espacios.map((espacio) => (
+            <TouchableOpacity
+              key={espacio.id}
+              style={[styles.chipEspacio, espacio.id === espacioId && styles.chipEspacioActivo]}
+              onPress={() => setEspacioId(espacio.id)}
+            >
+              <Text style={[styles.textoChipEspacio, espacio.id === espacioId && styles.textoChipEspacioActivo]}>
+                {espacio.nombre}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
       {/* Vista de Cámara o Simulación Web */}
       <View style={styles.cameraWrapper}>
         {Platform.OS === 'web' ? (
@@ -181,6 +218,42 @@ export default function AttendantScanScreen() {
         >
           <Text style={styles.textSimularInvalido}>Probá QR Inválido (Feedback de Error)</Text>
         </TouchableOpacity>
+        <Text style={styles.labelManual}>RESERVAS DEL DÍA</Text>
+        <ScrollView style={styles.listaReservas}>
+          {reservas
+            .filter((reserva) => reserva.estado === 'confirmada')
+            .map((reserva) => (
+              <View key={reserva.id} style={styles.reservaFila}>
+                <Text style={styles.reservaId}>{reserva.codigoQr} · {reserva.turnoId}</Text>
+                <TouchableOpacity
+                  style={styles.botonAusente}
+                  onPress={() => {
+                    Alert.alert('Marcar como ausente', '¿Confirmás que la persona no se presentó?', [
+                      { text: 'Cancelar', style: 'cancel' },
+                      {
+                        text: 'Marcar ausente',
+                        style: 'destructive',
+                        onPress: async () => {
+                          const resultado = await marcarAusente(reserva.id);
+                          if ('error' in resultado) {
+                            Alert.alert('No se pudo marcar ausente', resultado.error.mensaje);
+                            return;
+                          }
+                          await cargarReservas();
+                          Alert.alert('Ausencia registrada', 'La reserva quedó marcada como ausente.');
+                        },
+                      },
+                    ]);
+                  }}
+                >
+                  <Text style={styles.textoBotonAusente}>Ausente</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          {reservas.filter((reserva) => reserva.estado === 'confirmada').length === 0 && (
+            <Text style={styles.textoSinReservas}>No hay reservas confirmadas para esta cancha hoy.</Text>
+          )}
+        </ScrollView>
       </View>
     </View>
   );
@@ -196,6 +269,32 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: '#000',
     position: 'relative',
+  },
+  selectorEspacio: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: '#1E1E1E',
+    gap: 8,
+  },
+  listaEspacios: {
+    gap: 8,
+  },
+  chipEspacio: {
+    backgroundColor: '#2A2A2A',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  chipEspacioActivo: {
+    backgroundColor: '#2E7D32',
+  },
+  textoChipEspacio: {
+    color: '#CCC',
+    fontSize: 12,
+  },
+  textoChipEspacioActivo: {
+    color: '#FFF',
+    fontWeight: '700',
   },
   camera: {
     width: '100%',
@@ -277,6 +376,38 @@ const styles = StyleSheet.create({
     borderTopColor: '#2A2A2A',
     gap: 8,
     flex: 1,
+  },
+  listaReservas: {
+    maxHeight: 150,
+  },
+  reservaFila: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  reservaId: {
+    color: '#DDD',
+    fontSize: 11,
+    flex: 1,
+  },
+  botonAusente: {
+    backgroundColor: '#7F1D1D',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  textoBotonAusente: {
+    color: '#FFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  textoSinReservas: {
+    color: '#888',
+    fontSize: 12,
+    paddingVertical: 8,
   },
   labelManual: {
     color: '#AAA',

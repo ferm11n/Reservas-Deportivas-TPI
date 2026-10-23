@@ -4,330 +4,228 @@ import {
   Turno,
   Reserva,
   ReservaFija,
+  Usuario,
+  Bloqueo,
+  ArchivoSubido,
   RespuestaApi,
-  EstadoTurno,
 } from '../tipos';
+import { pedir, esErrorDeRed, leerIdDeTurno } from './api';
 import {
-  MOCK_ESPACIOS,
-  MOCK_DEPORTES,
-  MOCK_RESERVAS_FIJAS,
-  MOCK_RESERVAS_INICIALES,
-  MOCK_USUARIOS,
-} from '../mocks';
-import { guardarReservaOffline, obtenerReservasOffline, obtenerReservaPorQrOffline } from '../bd/sqlite';
+  guardarReservaOffline,
+  guardarReservasOffline,
+  obtenerReservasOffline,
+  guardarEnCache,
+  leerDeCache,
+} from '../bd/sqlite';
+import { File } from 'expo-file-system';
 
-// Simulación de almacenamiento mutable en memoria
-let espaciosStore: Espacio[] = [...MOCK_ESPACIOS];
-let reservasFijasStore: ReservaFija[] = [...MOCK_RESERVAS_FIJAS];
-let bloqueosMantenimientoStore: { espacioId: string; fecha: string; inicio: string; fin: string; motivo: string }[] = [
-  { espacioId: 'esp-03', fecha: new Date().toISOString().split('T')[0], inicio: '08:00', fin: '14:00', motivo: 'Mantenimiento de césped por lluvia' },
-];
+/**
+ * Capa de servicios de la app. Ninguna pantalla habla con la API ni con SQLite directo:
+ * todo pasa por acá. Cuando no hay señal, las lecturas caen a lo último guardado en SQLite.
+ */
 
-const delay = (ms: number = 300) => new Promise((resolve) => setTimeout(resolve, ms));
+// ===================== Catálogo (público, sin cuenta) =====================
 
-export const obtenerEspacios = async (): Promise<RespuestaApi<Espacio[]>> => {
-  await delay();
-  return {
-    datos: espaciosStore,
-    meta: { total: espaciosStore.length, pagina: 1, porPagina: 20 },
-  };
+export interface FiltrosEspacios {
+  deporteId?: string;
+  complejo?: string;
+  iluminacion?: boolean;
+  techado?: boolean;
+}
+
+export const obtenerEspacios = async (filtros: FiltrosEspacios = {}): Promise<RespuestaApi<Espacio[]>> => {
+  const res = await pedir<Espacio[]>('/espacios', { query: { ...filtros, porPagina: 100 }, conSesion: false });
+  const sinFiltros = Object.keys(filtros).length === 0;
+
+  if ('datos' in res) {
+    if (sinFiltros) await guardarEnCache('espacios', res.datos);
+    return res;
+  }
+  if (esErrorDeRed(res)) {
+    const guardados = await leerDeCache<Espacio[]>('espacios');
+    if (guardados) {
+      const filtrados = guardados.filter(
+        (e) =>
+          (!filtros.deporteId || e.deporteId === filtros.deporteId) &&
+          (!filtros.complejo || e.complejo === filtros.complejo) &&
+          (filtros.iluminacion === undefined || e.iluminacion === filtros.iluminacion) &&
+          (filtros.techado === undefined || e.techado === filtros.techado)
+      );
+      return { datos: filtrados };
+    }
+  }
+  return res;
 };
 
 export const obtenerEspacioPorId = async (id: string): Promise<RespuestaApi<Espacio>> => {
-  await delay();
-  const espacio = espaciosStore.find((e) => e.id === id);
-  if (!espacio) {
-    return {
-      error: { codigo: 'ESPACIO_NO_ENCONTRADO', mensaje: 'El espacio deportivo solicitado no existe.' },
-    };
+  const res = await pedir<Espacio>(`/espacios/${id}`, { conSesion: false });
+  if (esErrorDeRed(res)) {
+    const guardados = await leerDeCache<Espacio[]>('espacios');
+    const espacio = guardados?.find((e) => e.id === id);
+    if (espacio) return { datos: espacio };
   }
-  return { datos: espacio };
+  return res;
 };
 
 export const obtenerDeportes = async (): Promise<RespuestaApi<Deporte[]>> => {
-  await delay();
-  return { datos: MOCK_DEPORTES };
+  const res = await pedir<Deporte[]>('/deportes', { query: { porPagina: 100 }, conSesion: false });
+  if ('datos' in res) {
+    await guardarEnCache('deportes', res.datos);
+    return res;
+  }
+  if (esErrorDeRed(res)) {
+    const guardados = await leerDeCache<Deporte[]>('deportes');
+    if (guardados) return { datos: guardados };
+  }
+  return res;
 };
 
 /**
- * LÓGICA CRUCIAL DE GRILLA:
- * Genera franjas horarias de 1h entre las 08:00 y 24:00 hs.
- * Cruza reservas fijas semanales, reservas confirmadas individuales y mantenimientos.
+ * Grilla de un día: la arma la API cruzando reservas, reservas fijas y bloqueos.
+ * Devuelve los 16 turnos de 08:00 a 24:00 con estado libre / reservado / fijo / mantenimiento.
  */
-export const obtenerGrillaTurnos = async (
-  espacioId: string,
-  fecha: string // "AAAA-MM-DD"
-): Promise<RespuestaApi<Turno[]>> => {
-  await delay();
-  const espacio = espaciosStore.find((e) => e.id === espacioId);
-  if (!espacio) {
-    return { error: { codigo: 'ESPACIO_NO_ENCONTRADO', mensaje: 'Espacio no encontrado.' } };
+export const obtenerGrillaTurnos = async (espacioId: string, fecha: string): Promise<RespuestaApi<Turno[]>> => {
+  const clave = `turnos:${espacioId}:${fecha}`;
+  const res = await pedir<Turno[]>(`/espacios/${espacioId}/turnos`, { query: { fecha }, conSesion: false });
+  if ('datos' in res) {
+    await guardarEnCache(clave, res.datos);
+    return res;
   }
-
-  const fechaObj = new Date(fecha + 'T00:00:00');
-  const diaSemana = fechaObj.getDay() as 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = Domingo
-  const ahora = new Date();
-  const hoyStr = ahora.toISOString().split('T')[0];
-  const horaActual = ahora.getHours();
-
-  // Obtener reservas activas para este espacio y fecha
-  const reservasLocal = await obtenerReservasOffline('usr-207');
-  const todasLasReservas = [...MOCK_RESERVAS_INICIALES, ...reservasLocal];
-
-  const turnos: Turno[] = [];
-
-  for (let hora = 8; hora < 24; hora++) {
-    const inicioStr = `${hora.toString().padStart(2, '0')}:00`;
-    const finStr = `${(hora + 1).toString().padStart(2, '0')}:00`;
-    const turnoId = `tur-${espacioId}-${fecha}-${hora}`;
-
-    let estado: EstadoTurno = 'libre';
-    let reservaId: string | null = null;
-    let motivoBloqueo: string | null = null;
-
-    // 1. Verificación de iluminación para espacios sin luz
-    if (!espacio.iluminacion && hora >= 20) {
-      estado = 'mantenimiento';
-      motivoBloqueo = 'Sin iluminación nocturna disponible';
-    }
-
-    // 2. Verificación de mantenimientos manuales
-    const bloqueo = bloqueosMantenimientoStore.find(
-      (b) => b.espacioId === espacioId && b.fecha === fecha && b.inicio <= inicioStr && b.fin > inicioStr
-    );
-    if (bloqueo) {
-      estado = 'mantenimiento';
-      motivoBloqueo = bloqueo.motivo;
-    }
-
-    // 3. Verificación de reservas fijas semanales (si no hay mantenimiento)
-    if (estado === 'libre') {
-      const fija = reservasFijasStore.find(
-        (f) =>
-          f.espacioId === espacioId &&
-          f.activa &&
-          f.dia === diaSemana &&
-          f.inicio <= inicioStr &&
-          f.fin > inicioStr &&
-          f.desde <= fecha &&
-          (!f.hasta || f.hasta >= fecha)
-      );
-      if (fija) {
-        estado = 'fijo';
-        motivoBloqueo = `Reservado: ${fija.titular}`;
-      }
-    }
-
-    // 4. Verificación de reservas de usuarios individuales
-    if (estado === 'libre') {
-      const res = todasLasReservas.find(
-        (r) =>
-          r.espacioId === espacioId &&
-          r.estado === 'confirmada' &&
-          r.creadaEn.startsWith(fecha) || r.codigoQr.includes(fecha.replace(/-/g, '').slice(4))
-      );
-      if (res && res.turnoId.endsWith(`-${hora}`)) {
-        estado = 'reservado';
-        reservaId = res.id;
-      }
-    }
-
-    // 5. Horarios pasados del día de hoy
-    if (fecha === hoyStr && hora <= horaActual && estado === 'libre') {
-      estado = 'mantenimiento';
-      motivoBloqueo = 'Turno ya finalizado';
-    }
-
-    turnos.push({
-      id: turnoId,
-      espacioId,
-      fecha,
-      inicio: inicioStr,
-      fin: finStr,
-      estado,
-      reservaId,
-      motivoBloqueo,
-      precio: espacio.precioPorHora,
-    });
+  if (esErrorDeRed(res)) {
+    const guardados = await leerDeCache<Turno[]>(clave);
+    if (guardados) return { datos: guardados };
   }
+  return res;
+};
 
-  return { datos: turnos };
+// ===================== Reservas del jugador =====================
+
+/** POST /reservas. Si ya la tenía (reintento por mala señal) la API devuelve la misma. */
+export const crearReserva = async (turnoId: string, cantidadPersonas: number): Promise<RespuestaApi<Reserva>> => {
+  const res = await pedir<Reserva>('/reservas', { metodo: 'POST', cuerpo: { turnoId, cantidadPersonas } });
+  if ('datos' in res) await guardarReservaOffline(res.datos);
+  return res;
+};
+
+/** ¿La reserva es de un turno que ya terminó? (por el id del turno) */
+export const turnoYaPaso = (reserva: Reserva): boolean => {
+  const t = leerIdDeTurno(reserva.turnoId);
+  if (!t) return false;
+  const fin = t.fin === '24:00' ? `${t.fecha}T23:59:59` : `${t.fecha}T${t.fin}:00`;
+  return new Date(fin).getTime() < Date.now();
 };
 
 /**
- * Crear nueva reserva individual con validación de máx. 3 reservas activas.
+ * GET /yo/reservas?cuando=proximas|pasadas. Lo que llega se guarda en SQLite;
+ * sin señal se devuelve lo guardado (así el QR se ve en la puerta de la cancha).
  */
-export const crearReserva = async (
-  turnoId: string,
-  espacioId: string,
+export const obtenerMisReservas = async (
   usuarioId: string,
-  cantidadPersonas: number
-): Promise<RespuestaApi<Reserva>> => {
-  await delay();
-
-  // Validar máximo 3 reservas activas
-  const reservasExistentes = await obtenerReservasOffline(usuarioId);
-  const reservassActivas = reservasExistentes.filter((r) => r.estado === 'confirmada');
-  if (reservassActivas.length >= 3) {
-    return {
-      error: {
-        codigo: 'LIMITE_RESERVAS_ALCANZADO',
-        mensaje: 'Ya posees 3 reservas activas. Cancelá alguna para poder reservar un nuevo turno.',
-      },
-    };
+  cuando: 'proximas' | 'pasadas'
+): Promise<RespuestaApi<Reserva[]> & { offline?: boolean }> => {
+  const res = await pedir<Reserva[]>('/yo/reservas', { query: { cuando, porPagina: 100 } });
+  if ('datos' in res) {
+    await guardarReservasOffline(res.datos);
+    return res;
   }
-
-  const idNum = Math.floor(1000 + Math.random() * 9000);
-  const fechaActual = new Date();
-  const cancelableHasta = new Date(fechaActual.getTime() + 4 * 3600000).toISOString();
-  const codigoQr = `VGY-${idNum}-${espacioId.replace('esp-', '')}-${Date.now().toString().slice(-4)}`;
-
-  const nuevaReserva: Reserva = {
-    id: `res-${idNum}`,
-    turnoId,
-    espacioId,
-    usuarioId,
-    cantidadPersonas,
-    codigoQr,
-    estado: 'confirmada',
-    ingresoEn: null,
-    creadaEn: fechaActual.toISOString(),
-    cancelableHasta,
-  };
-
-  await guardarReservaOffline(nuevaReserva);
-
-  return { datos: nuevaReserva };
+  if (esErrorDeRed(res)) {
+    const guardadas = await obtenerReservasOffline(usuarioId);
+    const filtradas = guardadas.filter((r) =>
+      cuando === 'proximas' ? r.estado === 'confirmada' && !turnoYaPaso(r) : r.estado !== 'confirmada' || turnoYaPaso(r)
+    );
+    return { datos: filtradas, offline: true };
+  }
+  return res;
 };
 
-/**
- * Cancelar reserva individual con registro de cancelación tardía (< 4hs)
- */
+/** GET /reservas/<id>, con respaldo offline. */
+export const obtenerReserva = async (id: string, usuarioId?: string): Promise<RespuestaApi<Reserva>> => {
+  const res = await pedir<Reserva>(`/reservas/${id}`);
+  if ('datos' in res) {
+    if (!usuarioId || res.datos.usuarioId === usuarioId) await guardarReservaOffline(res.datos);
+    return res;
+  }
+  if (esErrorDeRed(res) && usuarioId) {
+    const guardada = (await obtenerReservasOffline(usuarioId)).find((r) => r.id === id);
+    if (guardada) return { datos: guardada };
+  }
+  return res;
+};
+
+/** POST /reservas/<id>/cancelacion. Fuera de plazo la API responde CANCELACION_FUERA_DE_PLAZO. */
 export const cancelarReserva = async (reservaId: string): Promise<RespuestaApi<Reserva>> => {
-  await delay();
-  const reservasLocal = await obtenerReservasOffline('usr-207');
-  const reserva = [...MOCK_RESERVAS_INICIALES, ...reservasLocal].find((r) => r.id === reservaId);
-
-  if (!reserva) {
-    return { error: { codigo: 'RESERVA_NO_ENCONTRADA', mensaje: 'No se encontró la reserva.' } };
-  }
-
-  reserva.estado = 'cancelada';
-
-  // Verificar si es cancelación tardía
-  const horasRestantes = (new Date(reserva.cancelableHasta).getTime() - Date.now()) / 3600000;
-  if (horasRestantes < 0) {
-    const usr = MOCK_USUARIOS.find((u) => u.id === reserva.usuarioId);
-    if (usr) usr.cancelacionesTardias += 1;
-  }
-
-  await guardarReservaOffline(reserva);
-  return { datos: reserva };
+  const res = await pedir<Reserva>(`/reservas/${reservaId}/cancelacion`, { metodo: 'POST' });
+  if ('datos' in res) await guardarReservaOffline(res.datos);
+  return res;
 };
 
-/**
- * Escaneo de QR por parte del Encargado en la puerta
- */
-export const escanearQrReserva = async (
-  codigoQr: string,
-  espacioIdActual: string
-): Promise<RespuestaApi<Reserva>> => {
-  await delay();
-  let reserva = await obtenerReservaPorQrOffline(codigoQr);
+// ===================== Encargado / administrador =====================
 
-  if (!reserva) {
-    // Buscar en mock
-    reserva = MOCK_RESERVAS_INICIALES.find((r) => r.codigoQr === codigoQr) || null;
-  }
+/** POST /ingresos: el encargado escanea el QR en la puerta de una cancha concreta. */
+export const registrarIngreso = async (codigoQr: string, espacioId: string): Promise<RespuestaApi<Reserva>> =>
+  pedir<Reserva>('/ingresos', { metodo: 'POST', cuerpo: { codigoQr: codigoQr.trim(), espacioId } });
 
-  if (!reserva) {
-    return {
-      error: {
-        codigo: 'QR_INVALIDO',
-        mensaje: 'El código QR no corresponde a ninguna reserva registrada.',
-      },
-    };
-  }
+/** POST /reservas/<id>/ausente: "no se presentó" (desde 15 min después del inicio). */
+export const marcarAusente = async (reservaId: string): Promise<RespuestaApi<Reserva>> =>
+  pedir<Reserva>(`/reservas/${reservaId}/ausente`, { metodo: 'POST' });
 
-  if (reserva.espacioId !== espacioIdActual && espacioIdActual !== 'todos') {
-    return {
-      error: {
-        codigo: 'CANCHA_INCORRECTA',
-        mensaje: 'Esta reserva pertenece a otra cancha o complejo deportivo.',
-      },
-    };
-  }
+/** GET /agenda?fecha=: los turnos de todos los espacios activos en el día. */
+export const obtenerAgenda = async (fecha: string): Promise<RespuestaApi<Turno[]>> =>
+  pedir<Turno[]>('/agenda', { query: { fecha, porPagina: 500 } });
 
-  if (reserva.estado === 'cumplida') {
-    return {
-      error: {
-        codigo: 'QR_YA_UTILIZADO',
-        mensaje: `Esta reserva ya fue validada el ${new Date(reserva.ingresoEn!).toLocaleTimeString()}.`,
-      },
-    };
-  }
+/** GET /reservas: reservas de todos (para saber quién tiene cada turno). */
+export const obtenerReservasDeTodos = async (filtros: {
+  fecha?: string;
+  espacioId?: string;
+  estado?: string;
+}): Promise<RespuestaApi<Reserva[]>> => pedir<Reserva[]>('/reservas', { query: { ...filtros, porPagina: 100 } });
 
-  if (reserva.estado === 'cancelada') {
-    return {
-      error: {
-        codigo: 'RESERVA_CANCELADA',
-        mensaje: 'Esta reserva figura como CANCELADA por el usuario.',
-      },
-    };
-  }
+/** GET /usuarios/<id>: el usuario con su teléfono, para avisarle. */
+export const obtenerUsuario = async (id: string): Promise<RespuestaApi<Usuario>> => pedir<Usuario>(`/usuarios/${id}`);
 
-  // Validar y marcar como ingresado
-  reserva.estado = 'cumplida';
-  reserva.ingresoEn = new Date().toISOString();
-  await guardarReservaOffline(reserva);
-
-  return { datos: reserva };
+/** POST /bloqueos. Sin inicio/fin bloquea el día entero. Cancela reservas confirmadas de esos turnos. */
+export const crearBloqueo = async (datos: {
+  espacioIds: string[];
+  fecha: string;
+  inicio?: string | null;
+  fin?: string | null;
+  motivo: string;
+}): Promise<RespuestaApi<Bloqueo[]>> => {
+  const cuerpo: Record<string, unknown> = { espacioIds: datos.espacioIds, fecha: datos.fecha, motivo: datos.motivo };
+  if (datos.inicio) cuerpo.inicio = datos.inicio;
+  if (datos.fin) cuerpo.fin = datos.fin;
+  return pedir<Bloqueo[]>('/bloqueos', { metodo: 'POST', cuerpo });
 };
 
-export const bloquearTurno = async (
-  espacioId: string,
-  fecha: string,
-  inicio: string,
-  fin: string,
-  motivo: string
-): Promise<RespuestaApi<{ ok: boolean }>> => {
-  await delay();
-  bloqueosMantenimientoStore.push({ espacioId, fecha, inicio, fin, motivo });
-  return { datos: { ok: true } };
-};
+export const obtenerBloqueos = async (espacioId?: string): Promise<RespuestaApi<Bloqueo[]>> =>
+  pedir<Bloqueo[]>('/bloqueos', { query: { espacioId, porPagina: 100 } });
 
-export const crearReservaFija = async (
-  espacioId: string,
-  titular: string,
-  dia: 0 | 1 | 2 | 3 | 4 | 5 | 6,
-  inicio: string,
-  fin: string
-): Promise<RespuestaApi<ReservaFija>> => {
-  await delay();
-  const nuevaFija: ReservaFija = {
-    id: `fij-${Math.floor(10 + Math.random() * 90)}`,
-    espacioId,
-    titular,
-    dia,
-    inicio,
-    fin,
-    desde: new Date().toISOString().split('T')[0],
-    hasta: null,
-    activa: true,
-  };
-  reservasFijasStore.push(nuevaFija);
-  return { datos: nuevaFija };
-};
+export const eliminarBloqueo = async (id: string): Promise<RespuestaApi<null>> =>
+  pedir<null>(`/bloqueos/${id}`, { metodo: 'DELETE' });
 
-export const actualizarPrecioEspacio = async (
-  espacioId: string,
-  nuevoPrecio: number
-): Promise<RespuestaApi<Espacio>> => {
-  await delay();
-  const espacio = espaciosStore.find((e) => e.id === espacioId);
-  if (!espacio) {
-    return { error: { codigo: 'NO_ENCONTRADO', mensaje: 'Espacio no encontrado.' } };
-  }
-  espacio.precioPorHora = nuevoPrecio;
-  return { datos: espacio };
+export const obtenerFijas = async (espacioId?: string): Promise<RespuestaApi<ReservaFija[]>> =>
+  pedir<ReservaFija[]>('/fijas', { query: { espacioId, activa: true, porPagina: 100 } });
+
+export const crearReservaFija = async (datos: Omit<ReservaFija, 'id' | 'activa'>): Promise<RespuestaApi<ReservaFija>> =>
+  pedir<ReservaFija>('/fijas', { metodo: 'POST', cuerpo: datos });
+
+export const editarReservaFija = async (
+  id: string,
+  cambios: Partial<Omit<ReservaFija, 'id'>>
+): Promise<RespuestaApi<ReservaFija>> => pedir<ReservaFija>(`/fijas/${id}`, { metodo: 'PATCH', cuerpo: cambios });
+
+export const bajaReservaFija = async (id: string): Promise<RespuestaApi<null>> =>
+  pedir<null>(`/fijas/${id}`, { metodo: 'DELETE' });
+
+/** PATCH /espacios/<id> { precioPorHora } (sólo administrador). */
+export const actualizarPrecioEspacio = async (espacioId: string, precioPorHora: number): Promise<RespuestaApi<Espacio>> =>
+  pedir<Espacio>(`/espacios/${espacioId}`, { metodo: 'PATCH', cuerpo: { precioPorHora: Math.round(precioPorHora) } });
+
+// ===================== Archivos =====================
+
+/** POST /archivos (multipart, campo "archivo"). Devuelve la URL pública del archivo. */
+export const subirArchivo = async (uri: string, nombre: string, mime: string): Promise<RespuestaApi<ArchivoSubido>> => {
+  const form = new FormData();
+  form.append('archivo', new File(uri), nombre);
+  return pedir<ArchivoSubido>('/archivos', { metodo: 'POST', formData: form });
 };

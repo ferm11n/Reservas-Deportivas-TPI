@@ -103,3 +103,28 @@ export interface RespuestaApiError {
 }
 
 export type RespuestaApi<T> = RespuestaApiExito<T> | RespuestaApiError;
+
+// ---- Tipos que agrega la API de la cátedra (contract/api.ts), no están en el PRD ----
+
+/** Bloqueo de un espacio. Sin inicio ni fin, cubre el día entero. */
+export interface Bloqueo {
+  id: string;
+  espacioId: string;
+  fecha: string;          // "AAAA-MM-DD"
+  inicio: string | null;  // "HH:MM"
+  fin: string | null;
+  motivo: string;
+}
+
+/** Respuesta de POST /auth/registro y POST /auth/ingreso. */
+export interface Sesion {
+  token: string;
+  usuario: Usuario;
+}
+
+/** Respuesta de POST /archivos. */
+export interface ArchivoSubido {
+  url: string;
+  tipo: 'imagen' | 'audio' | 'video';
+  bytes: number;
+}

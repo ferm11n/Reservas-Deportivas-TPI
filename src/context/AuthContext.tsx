@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Usuario, Rol } from '../tipos';
-import { obtenerSesionActual, cerrarSesion, cambiarRolPruebas, autenticarConBiometria } from '../servicios/auth';
+import { Usuario } from '../tipos';
+import { obtenerSesionActual, cerrarSesion, autenticarConBiometria, refrescarUsuario } from '../servicios/auth';
 
 interface AuthContextType {
   usuario: Usuario | null;
@@ -8,7 +8,6 @@ interface AuthContextType {
   cargando: boolean;
   actualizarUsuario: (u: Usuario | null, token?: string | null) => void;
   logout: () => Promise<void>;
-  cambiarRol: (rol: Rol) => Promise<void>;
   verificarBiometria: () => Promise<boolean>;
 }
 
@@ -18,7 +17,6 @@ const AuthContext = createContext<AuthContextType>({
   cargando: true,
   actualizarUsuario: () => {},
   logout: async () => {},
-  cambiarRol: async () => {},
   verificarBiometria: async () => false,
 });
 
@@ -37,6 +35,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUsuario(u);
     setToken(t);
     setCargando(false);
+    if (u && t) {
+      const actualizado = await refrescarUsuario();
+      if ('datos' in actualizado) setUsuario(actualizado.datos);
+    }
   };
 
   const actualizarUsuario = (u: Usuario | null, t?: string | null) => {
@@ -48,13 +50,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await cerrarSesion();
     setUsuario(null);
     setToken(null);
-  };
-
-  const cambiarRol = async (nuevoRol: Rol) => {
-    const usuarioActualizado = await cambiarRolPruebas(nuevoRol);
-    if (usuarioActualizado) {
-      setUsuario({ ...usuarioActualizado });
-    }
   };
 
   const verificarBiometria = async (): Promise<boolean> => {
@@ -70,7 +65,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         cargando,
         actualizarUsuario,
         logout,
-        cambiarRol,
         verificarBiometria,
       }}
     >

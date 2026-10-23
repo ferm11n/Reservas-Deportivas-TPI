@@ -8,9 +8,11 @@ import {
   ActivityIndicator,
   TextInput,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { Espacio, Deporte } from '../../tipos';
 import { obtenerEspacios, obtenerDeportes } from '../../servicios/reservas';
+import { marcarFavorito } from '../../servicios/auth';
 import { TarjetaEspacio } from '../../componentes/TarjetaEspacio';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
@@ -61,9 +63,18 @@ export default function CatalogScreen() {
     cargarDatos();
   };
 
-  const toggleFavorito = (espacioId: string) => {
+  const toggleFavorito = async (espacioId: string) => {
     if (!usuario) return;
     const yaFav = usuario.espaciosFavoritos.includes(espacioId);
+    const res = await marcarFavorito(espacioId, !yaFav);
+    if ('error' in res) {
+      Alert.alert('No se pudo actualizar el favorito', res.error.mensaje);
+      return;
+    }
+    if (res.datos) {
+      actualizarUsuario(res.datos);
+      return;
+    }
     const nuevosFavs = yaFav
       ? usuario.espaciosFavoritos.filter((id) => id !== espacioId)
       : [...usuario.espaciosFavoritos, espacioId];

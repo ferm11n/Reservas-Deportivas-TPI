@@ -8,13 +8,12 @@ import {
   Alert,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
-import { Rol } from '../../tipos';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { usuario, logout, cambiarRol, verificarBiometria } = useAuth();
+  const { usuario, logout, verificarBiometria } = useAuth();
 
   const handleProbadaBiometrica = async () => {
     const exito = await verificarBiometria();
@@ -23,11 +22,6 @@ export default function ProfileScreen() {
     } else {
       Alert.alert('Atención', 'No se pudo verificar la identidad biométrica.');
     }
-  };
-
-  const handleCambiarRol = async (rol: Rol) => {
-    await cambiarRol(rol);
-    Alert.alert('Rol Actualizado', `Ahora estás operando en el sistema como: ${rol.toUpperCase()}`);
   };
 
   if (!usuario) {
@@ -115,25 +109,22 @@ export default function ProfileScreen() {
         </View>
       )}
 
-      {/* Conmutador de Roles para la Defensa Oral */}
+      {/* Las cuentas de demo se autentican con la API; el rol no se cambia localmente. */}
       <View style={styles.seccionRoles}>
-        <Text style={styles.tituloSeccion}>CAMBIAR ROL (MODO DEFENSA ORAL / PRUEBAS)</Text>
-        <View style={styles.rolesRow}>
-          {(['jugador', 'encargado', 'administrador'] as Rol[]).map((r) => {
-            const activo = usuario.rol === r;
-            return (
-              <TouchableOpacity
-                key={r}
-                style={[styles.btnRol, activo && styles.btnRolActivo]}
-                onPress={() => handleCambiarRol(r)}
-              >
-                <Text style={[styles.textRol, activo && styles.textRolActivo]}>
-                  {r.toUpperCase()}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <Text style={styles.tituloSeccion}>CUENTAS DE DEMOSTRACIÓN</Text>
+        <Text style={styles.subtituloSinSesion}>
+          Para probar otro rol, ingresá con la cuenta de demo correspondiente desde la pantalla de acceso.
+        </Text>
+        <TouchableOpacity
+          style={styles.botonModuloAdmin}
+          onPress={async () => {
+            await logout();
+            router.replace('/(auth)/login' as any);
+          }}
+        >
+          <Ionicons name="swap-horizontal-outline" size={20} color="#FFF" />
+          <Text style={styles.textoBotonModulo}>Cambiar de cuenta</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Cerrar Sesión */}

@@ -18,7 +18,7 @@ export default function LoginScreen() {
   const { actualizarUsuario } = useAuth();
 
   const [email, setEmail] = useState('emiliano@mail.com');
-  const [clave, setClave] = useState('123456');
+  const [clave, setClave] = useState('villaguay2026');
   const [cargando, setCargando] = useState(false);
 
   const handleLogin = async () => {
@@ -88,7 +88,7 @@ export default function LoginScreen() {
           style={styles.chipAcceso}
           onPress={() => {
             setEmail('emiliano@mail.com');
-            setClave('123456');
+            setClave('villaguay2026');
           }}
         >
           <Text style={styles.chipText}>Jugador (emiliano@mail.com)</Text>
@@ -97,21 +97,21 @@ export default function LoginScreen() {
         <TouchableOpacity
           style={styles.chipAcceso}
           onPress={() => {
-            setEmail('marcelo@villaguay.gob.ar');
-            setClave('123456');
+            setEmail('marcelo@villaguay.demo.ar');
+            setClave('villaguay2026');
           }}
         >
-          <Text style={styles.chipText}>Encargado (marcelo@villaguay.gob.ar)</Text>
+          <Text style={styles.chipText}>Encargado (marcelo@villaguay.demo.ar)</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.chipAcceso}
           onPress={() => {
-            setEmail('nahuel@villaguay.gob.ar');
-            setClave('123456');
+            setEmail('nahuel@villaguay.demo.ar');
+            setClave('villaguay2026');
           }}
         >
-          <Text style={styles.chipText}>Administrador (nahuel@villaguay.gob.ar)</Text>
+          <Text style={styles.chipText}>Administrador (nahuel@villaguay.demo.ar)</Text>
         </TouchableOpacity>
       </View>
 
