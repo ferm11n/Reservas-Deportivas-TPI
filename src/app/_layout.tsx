@@ -14,8 +14,8 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <NetworkProvider>
+      <NetworkProvider>
+        <AuthProvider>
           <StatusBar style="light" />
           <BannerOffline />
           <Stack
@@ -35,8 +35,8 @@ export default function RootLayout() {
             <Stack.Screen name="encargado/escaneo" options={{ title: 'Escáner de Ingreso' }} />
             <Stack.Screen name="admin/index" options={{ title: 'Panel Administrador' }} />
           </Stack>
-        </NetworkProvider>
-      </AuthProvider>
+        </AuthProvider>
+      </NetworkProvider>
     </SafeAreaProvider>
   );
 }

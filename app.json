@@ -51,6 +51,7 @@
         }
       ],
       "expo-secure-store",
+      "expo-notifications",
       [
         "expo-build-properties",
         {
@@ -88,7 +89,6 @@
         }
       ],
       "@maplibre/maplibre-react-native",
-      "expo-build-properties",
       "expo-image",
       "expo-web-browser",
       "expo-asset"

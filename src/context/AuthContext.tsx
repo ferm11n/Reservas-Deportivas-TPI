@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { Usuario } from '../tipos';
 import { obtenerSesionActual, cerrarSesion, autenticarConBiometria, refrescarUsuario } from '../servicios/auth';
+import { eliminarDispositivoPush, registrarDispositivoPush } from '../servicios/notificaciones';
+import { useNetwork } from './NetworkContext';
 
 interface AuthContextType {
   usuario: Usuario | null;
@@ -24,22 +26,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
+  const { conectado } = useNetwork();
+  const registroPushEnCurso = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
-    cargarSesion();
+    let activa = true;
+    void obtenerSesionActual().then(async ({ usuario: u, token: t }) => {
+      if (!activa) return;
+      setUsuario(u);
+      setToken(t);
+      setCargando(false);
+      if (u && t) {
+        const actualizado = await refrescarUsuario();
+        if (activa && 'datos' in actualizado) setUsuario(actualizado.datos);
+      }
+    });
+    return () => {
+      activa = false;
+    };
   }, []);
 
-  const cargarSesion = async () => {
-    setCargando(true);
-    const { usuario: u, token: t } = await obtenerSesionActual();
-    setUsuario(u);
-    setToken(t);
-    setCargando(false);
-    if (u && t) {
-      const actualizado = await refrescarUsuario();
-      if ('datos' in actualizado) setUsuario(actualizado.datos);
+  useEffect(() => {
+    if (!cargando && usuario?.id && conectado) {
+      const registroAnterior = registroPushEnCurso.current;
+      const registro = registroAnterior
+        ? registroAnterior.catch(() => undefined).then(registrarDispositivoPush)
+        : registrarDispositivoPush();
+      registroPushEnCurso.current = registro;
+      void registro
+        .catch((error: unknown) => {
+          console.warn('No se pudo registrar el dispositivo para notificaciones:', error);
+        })
+        .finally(() => {
+          if (registroPushEnCurso.current === registro) {
+            registroPushEnCurso.current = null;
+          }
+        });
     }
-  };
+  }, [cargando, conectado, usuario?.id]);
 
   const actualizarUsuario = (u: Usuario | null, t?: string | null) => {
     setUsuario(u);
@@ -47,6 +71,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
+    const registroPendiente = registroPushEnCurso.current;
+    if (registroPendiente) {
+      try {
+        await registroPendiente;
+      } catch (error: unknown) {
+        console.warn('El registro push seguía pendiente al cerrar sesión:', error);
+      }
+    }
+    try {
+      await eliminarDispositivoPush();
+    } catch (error: unknown) {
+      console.warn('No se pudo dar de baja el dispositivo antes de cerrar sesión:', error);
+    }
     await cerrarSesion();
     setUsuario(null);
     setToken(null);
