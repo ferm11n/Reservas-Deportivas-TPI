@@ -18,7 +18,7 @@ Permite consultar en tiempo real la disponibilidad de **11 espacios deportivos m
 
 ### 👤 1. Módulo del Jugador
 - **Catálogo Interactivo:** Listado de las 11 canchas con filtros por deporte y por complejo deportivo (Polideportivo Municipal, Parque Berduc, Gimnasio Cerrado), características técnicas (superficie, iluminación nocturna, techado), precios y reglas.
-- **Multimedia:** Recorrido virtual en video (`expo-video`), fotos de reportes guardadas en el dispositivo y subidas a `POST /archivos`, y notas de voz grabadas, reproducibles y subidas mediante `expo-audio`.
+- **Multimedia:** Recorrido virtual reproducido con `expo-video` desde `assets/videos/videoCancha.mp4` (incluido en el build y disponible sin conexión cuando la API no provee un video); fotos de reportes guardadas en el dispositivo y subidas a `POST /archivos`, y notas de voz grabadas, reproducibles y subidas mediante `expo-audio`.
 - **Grilla de Disponibilidad (7 días):** La API publica los turnos y calcula la disponibilidad combinando reservas, fijas y bloqueos.
 - **Reservas & Código QR Offline:** Límite de hasta 3 reservas activas simultáneas. Generación de código QR almacenado localmente en SQLite para ingresar al predio sin señal ni datos móviles.
 - **Mapa & Ubicación:** Mapa nativo con `@maplibre/maplibre-react-native` y estilos de OpenFreeMap en Android/iOS; `expo-location` permite ver la distancia a cada predio. Web conserva el listado como alternativa.

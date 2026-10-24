@@ -129,8 +129,7 @@ export default function AvailabilityScreen() {
               programarRecordatorioTurno(
                 espacioActual.nombre,
                 fechaSeleccionada,
-                turnoSeleccionado.inicio,
-                5
+                turnoSeleccionado.inicio
               );
 
               Alert.alert(

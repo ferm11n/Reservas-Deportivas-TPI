@@ -29,6 +29,12 @@ export const useNotifications = () => {
     const Notifications = getNotificationsModule();
     if (!Notifications) return false;
     try {
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('recordatorios-turnos', {
+          name: 'Recordatorios de turnos',
+          importance: Notifications.AndroidImportance.DEFAULT,
+        });
+      }
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
       if (existingStatus !== 'granted') {
@@ -44,26 +50,29 @@ export const useNotifications = () => {
   const programarRecordatorioTurno = async (
     nombreCancha: string,
     fecha: string,
-    horaInicio: string,
-    segundosSimulados: number = 5
+    horaInicio: string
   ) => {
     const Notifications = getNotificationsModule();
     if (!Notifications) return;
 
     try {
+      const inicioTurno = new Date(`${fecha}T${horaInicio}:00`);
+      const fechaRecordatorio = new Date(inicioTurno.getTime() - 2 * 60 * 60 * 1000);
+      if (Number.isNaN(inicioTurno.getTime()) || fechaRecordatorio.getTime() <= Date.now()) return;
+
       const tienePermiso = await solicitarPermisosNotificaciones();
       if (!tienePermiso) return;
 
       await Notifications.scheduleNotificationAsync({
         content: {
           title: '⚽ Recordatorio de Turno Deportivo',
-          body: `¡Atención! Tu reserva en ${nombreCancha} es hoy ${fecha} a las ${horaInicio} hs. Mostrá tu QR al encargado.`,
+          body: `¡Atención! Tu reserva en ${nombreCancha} es el ${fecha} a las ${horaInicio} hs. Mostrá tu QR al encargado.`,
           sound: true,
         },
         trigger: {
-          type: 'timeInterval',
-          seconds: segundosSimulados,
-          repeats: false,
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: fechaRecordatorio,
+          ...(Platform.OS === 'android' ? { channelId: 'recordatorios-turnos' } : {}),
         },
       });
     } catch (e) {

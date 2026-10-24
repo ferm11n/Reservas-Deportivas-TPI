@@ -24,16 +24,17 @@ export default function MapaComplejos({
 }: Props) {
   const cameraRef = useRef<CameraRef>(null);
   const [errorMapa, setErrorMapa] = useState(false);
+  const [mapaListo, setMapaListo] = useState(false);
 
   useEffect(() => {
-    if (espacioSeleccionado) {
+    if (mapaListo && espacioSeleccionado) {
       cameraRef.current?.easeTo({
         center: [espacioSeleccionado.coordenadas.longitud, espacioSeleccionado.coordenadas.latitud],
         zoom: 14,
         duration: 500,
       });
     }
-  }, [espacioSeleccionado]);
+  }, [mapaListo, espacioSeleccionado]);
 
   return (
     <View style={styles.container}>
@@ -41,8 +42,14 @@ export default function MapaComplejos({
         style={styles.map}
         mapStyle={ESTILO_MAPA}
         attribution
-        onWillStartLoadingMap={() => setErrorMapa(false)}
-        onDidFinishLoadingMap={() => setErrorMapa(false)}
+        onWillStartLoadingMap={() => {
+          setErrorMapa(false);
+          setMapaListo(false);
+        }}
+        onDidFinishLoadingMap={() => {
+          setErrorMapa(false);
+          setMapaListo(true);
+        }}
         onDidFailLoadingMap={() => setErrorMapa(true)}
       >
         <Camera

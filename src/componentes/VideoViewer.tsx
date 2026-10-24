@@ -1,37 +1,28 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { useVideoPlayer, VideoView } from 'expo-video';
 
 interface Props {
-  videoUrl: string;
+  videoUrl?: string | null;
   nombreCancha: string;
 }
 
-export const VideoViewer: React.FC<Props> = ({ videoUrl, nombreCancha }) => {
-  if (Platform.OS === 'web') {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.titulo}>📹 Recorrido Virtual — {nombreCancha}</Text>
-        <video
-          src={videoUrl}
-          controls
-          style={{ width: '100%', height: 220, borderRadius: 12, backgroundColor: '#000' }}
-        />
-      </View>
-    );
-  }
+const VIDEO_RECORRIDO_LOCAL = require('../../assets/videos/videoCancha.mp4');
 
-  const player = useVideoPlayer(videoUrl, (playerInstance) => {
+export const VideoViewer: React.FC<Props> = ({ videoUrl, nombreCancha }) => {
+  const player = useVideoPlayer(videoUrl || VIDEO_RECORRIDO_LOCAL, (playerInstance) => {
     playerInstance.loop = true;
   });
 
   return (
     <View style={styles.container}>
-      <Text style={styles.titulo}>📹 Recorrido Virtual (30s) — {nombreCancha}</Text>
+      <Text style={styles.titulo}>📹 Recorrido Virtual — {nombreCancha}</Text>
       <View style={styles.videoWrapper}>
         <VideoView
           style={styles.video}
           player={player}
+          nativeControls
+          contentFit="contain"
         />
       </View>
     </View>

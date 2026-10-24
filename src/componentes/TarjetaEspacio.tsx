@@ -73,12 +73,10 @@ export const TarjetaEspacio: React.FC<Props> = ({
             </View>
           )}
 
-          {espacio.videoUrl && (
-            <View style={[styles.tag, styles.tagVideo]}>
-              <Ionicons name="videocam-outline" size={12} color="#4A148C" />
-              <Text style={styles.tagTextVideo}>Video 30s</Text>
-            </View>
-          )}
+          <View style={[styles.tag, styles.tagVideo]}>
+            <Ionicons name="videocam-outline" size={12} color="#4A148C" />
+            <Text style={styles.tagTextVideo}>Recorrido</Text>
+          </View>
         </View>
 
         <View style={styles.footerRow}>

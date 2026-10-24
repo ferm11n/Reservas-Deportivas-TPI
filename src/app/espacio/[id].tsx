@@ -228,14 +228,7 @@ export default function SpaceDetailScreen() {
       </View>
 
       {/* Reproductor de Video (expo-video) */}
-      {espacio.videoUrl ? (
-        <VideoViewer videoUrl={espacio.videoUrl} nombreCancha={espacio.nombre} />
-      ) : (
-        <View style={styles.cardNoVideo}>
-          <Ionicons name="videocam-off-outline" size={24} color="#666" />
-          <Text style={styles.textoNoVideo}>Esta cancha aún no posee video de recorrido disponible.</Text>
-        </View>
-      )}
+      <VideoViewer videoUrl={espacio.videoUrl} nombreCancha={espacio.nombre} />
 
       {/* Reglas del Lugar */}
       <View style={styles.cardReglas}>
@@ -377,21 +370,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     marginTop: 2,
-  },
-  cardNoVideo: {
-    marginHorizontal: 16,
-    backgroundColor: '#1E1E1E',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    gap: 6,
-    borderWidth: 1,
-    borderColor: '#2A2A2A',
-  },
-  textoNoVideo: {
-    color: '#888',
-    fontSize: 12,
-    textAlign: 'center',
   },
   cardReglas: {
     margin: 16,
