@@ -6,6 +6,7 @@
     "@expo/ui": "~57.0.26",
     "@expo/vector-icons": "^15.0.2",
     "@maplibre/maplibre-react-native": "^11.5.0",
+    "axios": "^1.21.0",
     "expo": "~57.0.31",
     "expo-asset": "~57.0.20",
     "expo-audio": "~57.0.5",

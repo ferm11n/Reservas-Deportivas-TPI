@@ -1,6 +1,6 @@
 import { ErrorApi, RespuestaApi, MetaPaginacion } from '../tipos';
 import { obtenerTokenDeSecureStore } from '../bd/secureStore';
-import { fetch as expoFetch } from 'expo/fetch';
+import axios, { isAxiosError } from 'axios';
 
 /**
  * Cliente HTTP único de la app. Todas las llamadas a la API pasan por acá:
@@ -43,15 +43,13 @@ export const pedir = async <T>(ruta: string, opciones: OpcionesPedido = {}): Pro
     if (token) cabeceras.Authorization = `Bearer ${token}`;
   }
 
-  const controlador = new AbortController();
-  const temporizador = setTimeout(() => controlador.abort(), TIEMPO_MAXIMO_MS);
-
   try {
-    const respuesta = await expoFetch(`${API_URL}${ruta}${armarQuery(query)}`, {
+    const respuesta = await axios.request<unknown>({
+      url: `${API_URL}${ruta}${armarQuery(query)}`,
       method: metodo,
       headers: cabeceras,
-      body: formData ?? (cuerpo !== undefined ? JSON.stringify(cuerpo) : undefined),
-      signal: controlador.signal,
+      data: formData ?? cuerpo,
+      timeout: TIEMPO_MAXIMO_MS,
     });
 
     // DELETE exitoso: 204 sin cuerpo
@@ -59,7 +57,7 @@ export const pedir = async <T>(ruta: string, opciones: OpcionesPedido = {}): Pro
       return { datos: null as T };
     }
 
-    const json: unknown = await respuesta.json().catch(() => null);
+    const json = respuesta.data;
 
     if (!json || typeof json !== 'object') {
       return { error: { codigo: 'RESPUESTA_INVALIDA', mensaje: 'La API respondió algo que no pudimos leer.' } };
@@ -72,12 +70,28 @@ export const pedir = async <T>(ruta: string, opciones: OpcionesPedido = {}): Pro
       }
       return { error: { codigo: 'RESPUESTA_INVALIDA', mensaje: 'La API respondió un error que no pudimos leer.' } };
     }
-    if (!respuesta.ok || !('datos' in sobre)) {
+    if (respuesta.status < 200 || respuesta.status >= 300 || !('datos' in sobre)) {
       return { error: { codigo: 'RESPUESTA_INVALIDA', mensaje: 'La API respondió algo que no pudimos leer.' } };
     }
     return { datos: sobre.datos as T, meta: (sobre.meta ?? undefined) as MetaPaginacion | undefined };
   } catch (error: unknown) {
-    const porTiempo = error instanceof Error && error.name === 'AbortError';
+    if (!isAxiosError(error)) throw error;
+
+    if (error.response) {
+      const json: unknown = error.response.data;
+      if (json && typeof json === 'object') {
+        const sobre = json as { error?: unknown };
+        if (sobre.error && typeof sobre.error === 'object') {
+          const errorApi = sobre.error as Partial<ErrorApi>;
+          if (typeof errorApi.codigo === 'string' && typeof errorApi.mensaje === 'string') {
+            return { error: { codigo: errorApi.codigo, mensaje: errorApi.mensaje } };
+          }
+        }
+      }
+      return { error: { codigo: 'RESPUESTA_INVALIDA', mensaje: 'La API respondió algo que no pudimos leer.' } };
+    }
+
+    const porTiempo = error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT';
     return {
       error: {
         codigo: porTiempo ? 'TIEMPO_AGOTADO' : 'ERROR_DE_RED',
@@ -86,8 +100,6 @@ export const pedir = async <T>(ruta: string, opciones: OpcionesPedido = {}): Pro
           : 'No pudimos conectarnos con el servidor. Revisá tu conexión.',
       },
     };
-  } finally {
-    clearTimeout(temporizador);
   }
 };
 
