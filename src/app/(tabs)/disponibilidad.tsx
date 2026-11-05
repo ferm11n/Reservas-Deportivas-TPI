@@ -250,7 +250,7 @@ export default function AvailabilityScreen() {
               <ActivityIndicator color="#FFF" />
             ) : (
               <>
-                <Text style={styles.textoBotonReservar}>R E S E R V A R</Text>
+                <Text style={styles.textoBotonReservar}>RESERVAR</Text>
                 <Ionicons name="checkmark-circle-outline" size={20} color="#FFF" />
               </>
             )}
@@ -429,5 +429,8 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '800',
+    // El espaciado visual va por estilo: "R E S E R V A R" con espacios
+    // se deletrea mal en los lectores de pantalla.
+    letterSpacing: 4,
   },
 });

@@ -48,7 +48,14 @@ export const TarjetaEspacio: React.FC<Props> = ({
         </View>
 
         {onToggleFavorito && (
-          <TouchableOpacity style={styles.botonFavorito} onPress={onToggleFavorito}>
+          <TouchableOpacity
+            style={styles.botonFavorito}
+            onPress={onToggleFavorito}
+            accessibilityRole="button"
+            accessibilityLabel={esFavorito ? 'Quitar de favoritos' : 'Agregar a favoritos'}
+            accessibilityState={{ selected: esFavorito }}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Ionicons
               name={esFavorito ? 'star' : 'star-outline'}
               size={20}

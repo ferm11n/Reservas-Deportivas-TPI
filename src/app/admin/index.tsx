@@ -503,6 +503,9 @@ export default function AdminScreen() {
                     <TouchableOpacity
                       style={styles.btnDesbloquear}
                       onPress={() => handleEliminarBloqueo(b.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Levantar el bloqueo: ${b.motivo}`}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     >
                       <Ionicons name="trash-outline" size={16} color="#FF5252" />
                     </TouchableOpacity>

@@ -109,7 +109,12 @@ export default function CatalogScreen() {
           onChangeText={setBusqueda}
         />
         {busqueda.length > 0 && (
-          <TouchableOpacity onPress={() => setBusqueda('')}>
+          <TouchableOpacity
+            onPress={() => setBusqueda('')}
+            accessibilityRole="button"
+            accessibilityLabel="Borrar búsqueda"
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Ionicons name="close-circle" size={18} color="#888" />
           </TouchableOpacity>
         )}
