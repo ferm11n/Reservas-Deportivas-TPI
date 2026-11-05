@@ -12,7 +12,9 @@ import axios, { isAxiosError } from 'axios';
 // Desde el teléfono no sirve localhost: va la IP de la computadora en la red wifi.
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.36:3000').replace(/\/$/, '');
 
-const TIEMPO_MAXIMO_MS = 60000;
+// 15 s: suficiente para una red lenta, sin dejar a la persona mirando un
+// spinner un minuto entero cuando la API no responde.
+const TIEMPO_MAXIMO_MS = 15000;
 
 /**
  * El AuthContext registra acá qué hacer cuando la API responde 401 con un token

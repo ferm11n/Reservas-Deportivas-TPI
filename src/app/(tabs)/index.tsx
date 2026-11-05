@@ -36,8 +36,7 @@ export default function CatalogScreen() {
     if (!esRefresco) setCargando(true);
     setError(null);
     try {
-      const resEsp = await obtenerEspacios();
-      const resDep = await obtenerDeportes();
+      const [resEsp, resDep] = await Promise.all([obtenerEspacios(), obtenerDeportes()]);
 
       if ('error' in resEsp) {
         setError(resEsp.error.mensaje);
