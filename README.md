@@ -4,6 +4,23 @@
 > **Tecnicatura Universitaria en Desarrollo Web — Universidad Nacional de Entre Ríos (UNER)**  
 > _Construido con React Native, Expo SDK 57, Expo Router, TypeScript y Axios._
 
+<p align="center">
+  <img src="https://img.shields.io/badge/Expo-SDK%2057-000020?logo=expo&logoColor=white" alt="Expo SDK 57">
+  <img src="https://img.shields.io/badge/React%20Native-0.86-61DAFB?logo=react&logoColor=white" alt="React Native">
+  <img src="https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
+  <img src="https://img.shields.io/badge/Plataformas-Android%20%7C%20iOS-3DDC84?logo=android&logoColor=white" alt="Plataformas">
+  <img src="https://img.shields.io/badge/Tests-9%20passing-success" alt="Tests">
+</p>
+
+<p align="center">
+  <img src="docs/media/demo.gif" width="290" alt="Recorrido por las pantallas principales de la app">
+</p>
+
+<p align="center">
+  🎬 <strong><a href="docs/media/demo-app.mp4">Ver la demo completa en video (11 min)</a></strong> — catálogo, reserva con QR,
+  <br>modo offline, escáner del encargado y panel de administración.
+</p>
+
 ---
 
 ## 📌 Sobre el Proyecto
@@ -11,6 +28,38 @@
 Aplicación móvil desarrollada para la **Dirección de Deportes de la Municipalidad de Villaguay, Entre Ríos**. La solución reemplaza el antiguo sistema de gestión manual por libreta de papel y mensajes de WhatsApp por una plataforma móvil ágil, transparente y robusta.
 
 Permite consultar en tiempo real la disponibilidad de **11 espacios deportivos municipales** (fútbol 5, fútbol 11, básquet, vóley, tenis y gimnasio cerrado), reservar turnos, consultar el código QR de acceso **sin conexión a internet** y gestionar roles diferenciados para jugadores, encargados de predio y administradores.
+
+---
+
+## 📸 Capturas de Pantalla
+
+### Módulo del Jugador
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/media/01-catalogo.png" width="210" alt="Catálogo de canchas"><br><sub><b>Catálogo</b> — filtros por deporte y complejo</sub></td>
+    <td align="center"><img src="docs/media/02-ficha-cancha.png" width="210" alt="Ficha de la cancha"><br><sub><b>Ficha</b> — características, video y reglas</sub></td>
+    <td align="center"><img src="docs/media/03-grilla-turnos.png" width="210" alt="Grilla de disponibilidad"><br><sub><b>Disponibilidad</b> — grilla de 7 días</sub></td>
+    <td align="center"><img src="docs/media/05-qr-reserva.png" width="210" alt="QR de la reserva"><br><sub><b>Reserva</b> — código QR offline</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/media/04-login.png" width="210" alt="Inicio de sesión"><br><sub><b>Acceso</b> — registro e ingreso</sub></td>
+    <td align="center"><img src="docs/media/06-mis-reservas.png" width="210" alt="Mis reservas"><br><sub><b>Mis Reservas</b> — límite 3 activas</sub></td>
+    <td align="center"><img src="docs/media/07-mapa.png" width="210" alt="Mapa de complejos"><br><sub><b>Mapa</b> — MapLibre + distancias</sub></td>
+    <td align="center"><img src="docs/media/08-perfil.png" width="210" alt="Perfil del usuario"><br><sub><b>Perfil</b> — rol y biometría</sub></td>
+  </tr>
+</table>
+
+### Encargado y Administrador
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/media/09-escaner.png" width="210" alt="Escáner QR"><br><sub><b>Escáner</b> — cámara + ingreso manual</sub></td>
+    <td align="center"><img src="docs/media/10-ingreso-valido.png" width="210" alt="Ingreso validado"><br><sub><b>Ingreso válido</b> — presente registrado</sub></td>
+    <td align="center"><img src="docs/media/11-ingreso-denegado.png" width="210" alt="Ingreso denegado"><br><sub><b>Ingreso denegado</b> — feedback háptico</sub></td>
+    <td align="center"><img src="docs/media/12-admin.png" width="210" alt="Panel de administración"><br><sub><b>Panel Admin</b> — agenda, bloqueos y tarifas</sub></td>
+  </tr>
+</table>
 
 ---
 
