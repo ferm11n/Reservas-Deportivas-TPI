@@ -119,6 +119,11 @@ requiere generar un build nuevo.
 
 ## Código fuente y datos
 
+- Para datos ficticios de análisis, la API incluye `db:sembrar-analitica`: agrega 300 reservas
+  históricas en seis meses por defecto, sin borrar datos. En Docker debe ejecutarse dentro de
+  un contenedor para usar el mismo volumen de la API. Consultá la sección “Agregar datos
+  ficticios para analítica” del README de la API; el acceso a bases externas requiere las
+  opciones explícitas de confirmación.
 - Entregá el APK final y los enlaces a los repositorios de la app y de la API, o un ZIP con ambos
   proyectos si así lo pide la cátedra.
 - Incluí los README, `app.json`, `eas.json` y los archivos necesarios para instalar dependencias.
