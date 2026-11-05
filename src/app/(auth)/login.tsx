@@ -17,8 +17,10 @@ export default function LoginScreen() {
   const router = useRouter();
   const { actualizarUsuario } = useAuth();
 
-  const [email, setEmail] = useState('emiliano@mail.com');
-  const [clave, setClave] = useState('villaguay2026');
+  // Las cuentas de demo solo existen en desarrollo: un APK de entrega no
+  // debe traer credenciales precargadas ni exponer la cuenta de admin (OWASP M1).
+  const [email, setEmail] = useState(__DEV__ ? 'emiliano@mail.com' : '');
+  const [clave, setClave] = useState(__DEV__ ? 'villaguay2026' : '');
   const [cargando, setCargando] = useState(false);
 
   const handleLogin = async () => {
@@ -82,6 +84,7 @@ export default function LoginScreen() {
         </TouchableOpacity>
       </View>
 
+      {__DEV__ && (
       <View style={styles.quickAccess}>
         <Text style={styles.quickTitle}>ACCESO RÁPIDO PARA DEFENSA / PRUEBAS:</Text>
         <TouchableOpacity
@@ -114,6 +117,7 @@ export default function LoginScreen() {
           <Text style={styles.chipText}>Administrador (nahuel@villaguay.demo.ar)</Text>
         </TouchableOpacity>
       </View>
+      )}
 
       <TouchableOpacity
         style={styles.footerLink}
