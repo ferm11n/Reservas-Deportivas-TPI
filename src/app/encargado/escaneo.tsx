@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  Linking,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Espacio, Reserva } from '../../tipos';
@@ -110,15 +111,25 @@ export default function AttendantScanScreen() {
   }
 
   if (Platform.OS !== 'web' && !permission.granted) {
+    // Cuando canAskAgain es false el sistema ya no vuelve a mostrar el cartel:
+    // el único camino es que la persona lo habilite desde Ajustes.
+    const sinReintento = !permission.canAskAgain;
     return (
       <View style={styles.centrado}>
         <Ionicons name="camera-outline" size={56} color="#FFD54F" />
         <Text style={styles.tituloBiometria}>Permiso de Cámara Requerido</Text>
         <Text style={styles.subBiometria}>
-          Necesitamos acceso a la cámara del teléfono para escanear los códigos QR de las reservas.
+          {sinReintento
+            ? 'El permiso de cámara está denegado. Para escanear códigos QR, habilitalo desde los Ajustes del teléfono.'
+            : 'Necesitamos acceso a la cámara del teléfono para escanear los códigos QR de las reservas.'}
         </Text>
-        <TouchableOpacity style={styles.botonReintentarBio} onPress={requestPermission}>
-          <Text style={styles.textoBotonBio}>Conceder Permiso de Cámara</Text>
+        <TouchableOpacity
+          style={styles.botonReintentarBio}
+          onPress={sinReintento ? () => Linking.openSettings() : requestPermission}
+        >
+          <Text style={styles.textoBotonBio}>
+            {sinReintento ? 'Abrir Ajustes' : 'Conceder Permiso de Cámara'}
+          </Text>
         </TouchableOpacity>
       </View>
     );

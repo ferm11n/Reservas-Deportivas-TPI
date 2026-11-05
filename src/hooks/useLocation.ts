@@ -11,10 +11,13 @@ const VILLAGUAY_CENTRO: Coordenadas = {
 export const useLocation = () => {
   const [ubicacionUsuario, setUbicacionUsuario] = useState<Coordenadas | null>(null);
   const [permisoDenegado, setPermisoDenegado] = useState(false);
+  // Distinto de "denegado": el permiso está, pero el GPS falló o está apagado.
+  const [errorUbicacion, setErrorUbicacion] = useState(false);
   const [cargandoUbicacion, setCargandoUbicacion] = useState(true);
 
   const obtenerUbicacion = useCallback(async () => {
     setCargandoUbicacion(true);
+    setErrorUbicacion(false);
     if (Platform.OS === 'web') {
       setUbicacionUsuario(VILLAGUAY_CENTRO);
       setCargandoUbicacion(false);
@@ -42,7 +45,7 @@ export const useLocation = () => {
       });
       setPermisoDenegado(false);
     } catch {
-      setPermisoDenegado(true);
+      setErrorUbicacion(true);
       setUbicacionUsuario(null);
     } finally {
       setCargandoUbicacion(false);
@@ -73,6 +76,7 @@ export const useLocation = () => {
   return {
     ubicacionUsuario,
     permisoDenegado,
+    errorUbicacion,
     cargandoUbicacion,
     VILLAGUAY_CENTRO,
     obtenerUbicacion,
