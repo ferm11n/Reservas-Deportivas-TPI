@@ -30,8 +30,10 @@ export default function CatalogScreen() {
   const [complejoSeleccionado, setComplejoSeleccionado] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
 
-  const cargarDatos = useCallback(async () => {
-    setCargando(true);
+  const cargarDatos = useCallback(async (esRefresco = false) => {
+    // Al refrescar no se enciende "cargando": eso desmontaría la FlatList
+    // y con ella el RefreshControl que muestra el gesto en curso.
+    if (!esRefresco) setCargando(true);
     setError(null);
     try {
       const resEsp = await obtenerEspacios();
@@ -60,7 +62,7 @@ export default function CatalogScreen() {
 
   const onRefresh = () => {
     setRefrescando(true);
-    cargarDatos();
+    cargarDatos(true);
   };
 
   const toggleFavorito = async (espacioId: string) => {
@@ -173,7 +175,7 @@ export default function CatalogScreen() {
         <View style={styles.centrado}>
           <Ionicons name="alert-circle-outline" size={48} color="#D32F2F" />
           <Text style={styles.textoError}>{error}</Text>
-          <TouchableOpacity style={styles.botonReintentar} onPress={cargarDatos}>
+          <TouchableOpacity style={styles.botonReintentar} onPress={() => cargarDatos()}>
             <Text style={styles.textoBotonReintentar}>Reintentar</Text>
           </TouchableOpacity>
         </View>

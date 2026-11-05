@@ -125,12 +125,17 @@ export default function AvailabilityScreen() {
             if ('error' in res) {
               Alert.alert('Atención', res.error.mensaje);
             } else {
-              // Programar recordatorio de notificación local
-              programarRecordatorioTurno(
-                espacioActual.nombre,
-                fechaSeleccionada,
-                turnoSeleccionado.inicio
-              );
+              try {
+                await programarRecordatorioTurno(
+                  res.datos.id,
+                  espacioActual.nombre,
+                  fechaSeleccionada,
+                  turnoSeleccionado.inicio
+                );
+              } catch (error) {
+                // La reserva ya está hecha: el recordatorio fallido no debe cortar el flujo.
+                console.warn('No se pudo programar el recordatorio del turno:', error);
+              }
 
               Alert.alert(
                 '¡Reserva Confirmada! 🎉',

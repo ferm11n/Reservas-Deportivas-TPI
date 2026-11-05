@@ -22,6 +22,7 @@ export default function MyReservationsScreen() {
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [espacios, setEspacios] = useState<Espacio[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [cancelando, setCancelando] = useState(false);
 
   const usuarioId = usuario?.id ?? null;
 
@@ -68,12 +69,17 @@ export default function MyReservationsScreen() {
         text: 'Sí, Cancelar',
         style: 'destructive',
         onPress: async () => {
-          const resultado = await cancelarReserva(reserva.id);
-          if ('error' in resultado) {
-            Alert.alert('No se pudo cancelar', resultado.error.mensaje);
-          } else {
-            Alert.alert('Reserva Cancelada', 'La reserva ha sido cancelada correctamente.');
-            cargarDatos();
+          setCancelando(true);
+          try {
+            const resultado = await cancelarReserva(reserva.id);
+            if ('error' in resultado) {
+              Alert.alert('No se pudo cancelar', resultado.error.mensaje);
+            } else {
+              Alert.alert('Reserva Cancelada', 'La reserva ha sido cancelada correctamente.');
+              cargarDatos();
+            }
+          } finally {
+            setCancelando(false);
           }
         },
       },
@@ -188,7 +194,8 @@ export default function MyReservationsScreen() {
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={styles.botonCancelar}
+                      style={[styles.botonCancelar, cancelando && styles.botonDeshabilitado]}
+                      disabled={cancelando}
                       onPress={() => handleCancelar(item, nombreEspacio)}
                     >
                       <Text style={styles.textoBotonCancelar}>Cancelar</Text>
@@ -326,6 +333,9 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 13,
     fontWeight: '700',
+  },
+  botonDeshabilitado: {
+    opacity: 0.5,
   },
   botonCancelar: {
     flex: 1,

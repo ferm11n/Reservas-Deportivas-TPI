@@ -48,6 +48,9 @@ export default function AdminScreen() {
 
   // Agenda del día
   const [fechaAgenda, setFechaAgenda] = useState<string>(fechaLocal());
+  // Borrador del input de fecha: la consulta recién se dispara al confirmar,
+  // no con cada tecla (cada cambio de fechaAgenda refetchea la agenda).
+  const [fechaAgendaBorrador, setFechaAgendaBorrador] = useState<string>(fechaLocal());
   const [turnosAgenda, setTurnosAgenda] = useState<Turno[]>([]);
   const [reservasAgenda, setReservasAgenda] = useState<Reserva[]>([]);
   const [cargandoAgenda, setCargandoAgenda] = useState(false);
@@ -114,6 +117,31 @@ export default function AdminScreen() {
     if ('datos' in res) setReservasFijas(res.datos);
     else Alert.alert('No se pudieron cargar las reservas fijas', res.error.mensaje);
   }, [espacioIdSeleccionado]);
+
+  const [enviando, setEnviando] = useState(false);
+
+  // Evita el doble toque en las acciones que mutan datos: mientras una está
+  // en vuelo, las demás se ignoran y los botones se ven deshabilitados.
+  const conEnvio = async (accion: () => Promise<void>) => {
+    if (enviando) return;
+    setEnviando(true);
+    try {
+      await accion();
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const confirmarFechaAgenda = () => {
+    const fecha = fechaAgendaBorrador.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+      setFechaAgenda(fecha);
+      setFechaAgendaBorrador(fecha);
+    } else {
+      setFechaAgendaBorrador(fechaAgenda);
+      Alert.alert('Fecha inválida', 'Usá el formato AAAA-MM-DD, por ejemplo 2026-11-05.');
+    }
+  };
 
   useEffect(() => {
     cargarDatosIniciales();
@@ -353,7 +381,17 @@ export default function AdminScreen() {
             </View>
 
             <Text style={styles.inputLabel}>Fecha de consulta (AAAA-MM-DD):</Text>
-            <TextInput style={styles.input} value={fechaAgenda} onChangeText={setFechaAgenda} />
+            <TextInput
+              style={styles.input}
+              value={fechaAgendaBorrador}
+              onChangeText={setFechaAgendaBorrador}
+              onEndEditing={confirmarFechaAgenda}
+              onSubmitEditing={confirmarFechaAgenda}
+              returnKeyType="done"
+              keyboardType="numbers-and-punctuation"
+              placeholder="AAAA-MM-DD"
+              placeholderTextColor="#777"
+            />
 
             {cargandoAgenda ? (
               <ActivityIndicator color="#64B5F6" style={{ marginVertical: 20 }} />
@@ -379,8 +417,9 @@ export default function AdminScreen() {
                       </Text>
                       {reserva?.estado === 'confirmada' && (
                         <TouchableOpacity
-                          style={[styles.btnToggleFija, styles.btnFijaInactiva]}
-                          onPress={() => handleMarcarAusente(reserva.id)}
+                          style={[styles.btnToggleFija, styles.btnFijaInactiva, enviando && styles.btnDeshabilitado]}
+                          disabled={enviando}
+                          onPress={() => conEnvio(() => handleMarcarAusente(reserva.id))}
                         >
                           <Text style={styles.textToggleFija}>AUSENTE</Text>
                         </TouchableOpacity>
@@ -438,7 +477,11 @@ export default function AdminScreen() {
                 onChangeText={setMotivoBloqueo}
               />
 
-              <TouchableOpacity style={styles.btnBloquear} onPress={handleCargarBloqueo}>
+              <TouchableOpacity
+                style={[styles.btnBloquear, enviando && styles.btnDeshabilitado]}
+                disabled={enviando}
+                onPress={() => conEnvio(handleCargarBloqueo)}
+              >
                 <Ionicons name="lock-closed" size={16} color="#FFF" />
                 <Text style={styles.textBtn}>Aplicar Bloqueo y Notificar</Text>
               </TouchableOpacity>
@@ -514,7 +557,11 @@ export default function AdminScreen() {
               <Text style={styles.inputLabel}>Vigente desde (AAAA-MM-DD):</Text>
               <TextInput style={styles.input} value={desdeFija} onChangeText={setDesdeFija} />
 
-              <TouchableOpacity style={styles.btnFija} onPress={handleCargarFija}>
+              <TouchableOpacity
+                style={[styles.btnFija, enviando && styles.btnDeshabilitado]}
+                disabled={enviando}
+                onPress={() => conEnvio(handleCargarFija)}
+              >
                 <Ionicons name="add-circle-outline" size={16} color="#FFF" />
                 <Text style={styles.textBtn}>{fijaEditandoId ? 'Guardar Cambios' : 'Guardar Reserva Fija'}</Text>
               </TouchableOpacity>
@@ -593,7 +640,11 @@ export default function AdminScreen() {
               onChangeText={setNuevoPrecio}
             />
 
-            <TouchableOpacity style={styles.btnPrecio} onPress={handleCambiarPrecio}>
+            <TouchableOpacity
+              style={[styles.btnPrecio, enviando && styles.btnDeshabilitado]}
+              disabled={enviando}
+              onPress={() => conEnvio(handleCambiarPrecio)}
+            >
               <Ionicons name="checkmark-done-outline" size={16} color="#FFF" />
               <Text style={styles.textBtn}>Actualizar Tarifa del Espacio</Text>
             </TouchableOpacity>
@@ -608,6 +659,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#121212',
+  },
+  btnDeshabilitado: {
+    opacity: 0.5,
   },
   headerPanel: {
     backgroundColor: '#1E1E1E',

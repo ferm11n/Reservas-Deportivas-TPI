@@ -6,6 +6,7 @@ import { pedir } from './api';
 type ExpoNotifications = typeof import('expo-notifications');
 
 const CLAVE_TOKEN_PUSH = 'expo-push-token';
+const claveRecordatorio = (reservaId: string) => `recordatorio:${reservaId}`;
 const CANAL_RECORDATORIOS = 'recordatorios-turnos';
 let manejadorConfigurado = false;
 
@@ -52,6 +53,7 @@ export const solicitarPermisosNotificaciones = async (): Promise<boolean> => {
 };
 
 export const programarRecordatorioTurno = async (
+  reservaId: string,
   nombreCancha: string,
   fecha: string,
   horaInicio: string,
@@ -64,7 +66,7 @@ export const programarRecordatorioTurno = async (
   if (Number.isNaN(inicioTurno.getTime()) || fechaRecordatorio.getTime() <= Date.now()) return;
   if (!(await solicitarPermisosNotificaciones())) return;
 
-  await Notifications.scheduleNotificationAsync({
+  const notificacionId = await Notifications.scheduleNotificationAsync({
     content: {
       title: '⚽ Recordatorio de Turno Deportivo',
       body: `¡Atención! Tu reserva en ${nombreCancha} es el ${fecha} a las ${horaInicio} hs. Mostrá tu QR al encargado.`,
@@ -76,6 +78,21 @@ export const programarRecordatorioTurno = async (
       ...(Platform.OS === 'android' ? { channelId: CANAL_RECORDATORIOS } : {}),
     },
   });
+  // El id queda asociado a la reserva para poder cancelar el recordatorio
+  // si la reserva se cancela antes de que se dispare.
+  await setKVItem(claveRecordatorio(reservaId), notificacionId);
+};
+
+export const cancelarRecordatorioTurno = async (reservaId: string): Promise<void> => {
+  const Notifications = obtenerModuloNotificaciones();
+  if (!Notifications) return;
+  const notificacionId = await getKVItem(claveRecordatorio(reservaId));
+  if (!notificacionId) return;
+  try {
+    await Notifications.cancelScheduledNotificationAsync(notificacionId);
+  } finally {
+    await removeKVItem(claveRecordatorio(reservaId));
+  }
 };
 
 export const notificarCancelacion = async (

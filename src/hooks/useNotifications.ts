@@ -1,6 +1,7 @@
 import {
   solicitarPermisosNotificaciones,
   programarRecordatorioTurno,
+  cancelarRecordatorioTurno,
   notificarCancelacion,
   notificarFavoritoLiberado,
 } from '../servicios/notificaciones';
@@ -8,6 +9,7 @@ import {
 export {
   solicitarPermisosNotificaciones,
   programarRecordatorioTurno,
+  cancelarRecordatorioTurno,
   notificarCancelacion,
   notificarFavoritoLiberado,
 };
@@ -15,6 +17,7 @@ export {
 export const useNotifications = () => ({
   solicitarPermisosNotificaciones,
   programarRecordatorioTurno,
+  cancelarRecordatorioTurno,
   notificarCancelacion,
   notificarFavoritoLiberado,
 });

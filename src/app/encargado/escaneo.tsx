@@ -226,7 +226,8 @@ export default function AttendantScanScreen() {
               <View key={reserva.id} style={styles.reservaFila}>
                 <Text style={styles.reservaId}>{reserva.codigoQr} · {reserva.turnoId}</Text>
                 <TouchableOpacity
-                  style={styles.botonAusente}
+                  style={[styles.botonAusente, procesando && styles.botonDeshabilitado]}
+                  disabled={procesando}
                   onPress={() => {
                     Alert.alert('Marcar como ausente', '¿Confirmás que la persona no se presentó?', [
                       { text: 'Cancelar', style: 'cancel' },
@@ -234,13 +235,18 @@ export default function AttendantScanScreen() {
                         text: 'Marcar ausente',
                         style: 'destructive',
                         onPress: async () => {
-                          const resultado = await marcarAusente(reserva.id);
-                          if ('error' in resultado) {
-                            Alert.alert('No se pudo marcar ausente', resultado.error.mensaje);
-                            return;
+                          setProcesando(true);
+                          try {
+                            const resultado = await marcarAusente(reserva.id);
+                            if ('error' in resultado) {
+                              Alert.alert('No se pudo marcar ausente', resultado.error.mensaje);
+                              return;
+                            }
+                            await cargarReservas();
+                            Alert.alert('Ausencia registrada', 'La reserva quedó marcada como ausente.');
+                          } finally {
+                            setProcesando(false);
                           }
-                          await cargarReservas();
-                          Alert.alert('Ausencia registrada', 'La reserva quedó marcada como ausente.');
                         },
                       },
                     ]);
@@ -392,6 +398,9 @@ const styles = StyleSheet.create({
     color: '#DDD',
     fontSize: 11,
     flex: 1,
+  },
+  botonDeshabilitado: {
+    opacity: 0.5,
   },
   botonAusente: {
     backgroundColor: '#7F1D1D',
