@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Reserva, Espacio } from '../../tipos';
 import { obtenerEspacios, obtenerMisReservas, cancelarReserva } from '../../servicios/reservas';
+import { filtrarReservasPorPestania, contarReservasActivas } from '../../servicios/filtrosReservas';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -86,13 +87,7 @@ export default function MyReservationsScreen() {
     ]);
   };
 
-  const reservasFiltradas = reservas.filter((r) => {
-    if (tabActiva === 'proximas') {
-      return r.estado === 'confirmada';
-    } else {
-      return r.estado === 'cumplida' || r.estado === 'cancelada' || r.estado === 'ausente';
-    }
-  });
+  const reservasFiltradas = filtrarReservasPorPestania(reservas, tabActiva);
 
   if (!usuario) {
     return (
@@ -118,7 +113,7 @@ export default function MyReservationsScreen() {
           onPress={() => setTabActiva('proximas')}
         >
           <Text style={[styles.tabText, tabActiva === 'proximas' && styles.tabTextActiva]}>
-            PRÓXIMAS ({reservas.filter((r) => r.estado === 'confirmada').length}/3)
+            PRÓXIMAS ({contarReservasActivas(reservas)}/3)
           </Text>
         </TouchableOpacity>
 

@@ -1,11 +1,12 @@
 {
-  "name": "temp-app",
+  "name": "reservas-deportivas-villaguay",
   "main": "expo-router/entry",
   "version": "1.0.0",
   "dependencies": {
     "@expo/ui": "~57.0.26",
     "@expo/vector-icons": "^15.0.2",
     "@maplibre/maplibre-react-native": "^11.5.0",
+    "@types/jest": "29.5.14",
     "axios": "^1.21.0",
     "expo": "~57.0.32",
     "expo-asset": "~57.0.20",
@@ -35,6 +36,8 @@
     "expo-system-ui": "~57.0.4",
     "expo-video": "~57.0.5",
     "expo-web-browser": "~57.0.3",
+    "jest": "~29.7.0",
+    "jest-expo": "~57.0.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
@@ -60,7 +63,12 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "typecheck": "tsc --noEmit",
+    "test": "jest"
+  },
+  "jest": {
+    "preset": "jest-expo"
   },
   "private": true
 }
