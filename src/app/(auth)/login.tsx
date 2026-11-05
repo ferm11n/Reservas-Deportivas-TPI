@@ -35,7 +35,7 @@ export default function LoginScreen() {
       Alert.alert('Error al Ingresar', res.error.mensaje);
     } else {
       actualizarUsuario(res.datos.usuario, res.datos.token);
-      router.replace('/(tabs)' as any);
+      router.replace('/(tabs)');
     }
   };
 
@@ -117,7 +117,7 @@ export default function LoginScreen() {
 
       <TouchableOpacity
         style={styles.footerLink}
-        onPress={() => router.push('/(auth)/register' as any)}
+        onPress={() => router.push('/(auth)/register')}
       >
         <Text style={styles.footerText}>
           ¿No tenés cuenta? <Text style={styles.linkBold}>Registrate acá</Text>

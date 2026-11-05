@@ -56,7 +56,7 @@ export default function MapScreen() {
         ubicacionUsuario={ubicacionUsuario}
         espacioSeleccionado={espacioSeleccionado}
         onSeleccionar={centrarEnPredio}
-        onAbrir={(espacio) => router.push(`/espacio/${espacio.id}` as any)}
+        onAbrir={(espacio) => router.push(`/espacio/${espacio.id}`)}
       />
 
       {/* Lista Deslizable Inferior de Predios y Distancias en km */}

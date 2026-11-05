@@ -291,7 +291,7 @@ export default function SpaceDetailScreen() {
       {/* Botón Ver Grilla de Turnos */}
       <TouchableOpacity
         style={styles.botonVerTurnos}
-        onPress={() => router.push('/(tabs)/disponibilidad' as any)}
+        onPress={() => router.push('/(tabs)/disponibilidad')}
       >
         <Text style={styles.textoBotonVerTurnos}>VER GRILLA DE TURNOS LIBRES</Text>
         <Ionicons name="calendar-outline" size={20} color="#FFF" />

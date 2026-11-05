@@ -93,7 +93,7 @@ export default function AvailabilityScreen() {
         'Para reservar un turno debes iniciar sesión o registrarte.',
         [
           { text: 'Cancelar', style: 'cancel' },
-          { text: 'Iniciar Sesión', onPress: () => router.push('/(auth)/login' as any) },
+          { text: 'Iniciar Sesión', onPress: () => router.push('/(auth)/login') },
         ]
       );
       return;
@@ -138,7 +138,7 @@ export default function AvailabilityScreen() {
                 [
                   {
                     text: 'Ver Mi QR',
-                    onPress: () => router.push(`/reserva/${res.datos.id}` as any),
+                    onPress: () => router.push(`/reserva/${res.datos.id}`),
                   },
                 ]
               );

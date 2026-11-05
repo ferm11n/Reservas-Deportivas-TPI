@@ -4,6 +4,16 @@ import { Espacio, Deporte } from '../tipos';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 
+type NombreIcono = React.ComponentProps<typeof Ionicons>['name'];
+
+/**
+ * La API entrega `Deporte.icono` como string libre; Ionicons solo acepta su
+ * propio union de nombres. Si el nombre no existe en la fuente, Ionicons
+ * muestra "?" sin romper, así que alcanza con acotar el tipo.
+ */
+export const iconoDeporte = (icono?: string | null): NombreIcono =>
+  (icono || 'football-outline') as NombreIcono;
+
 interface Props {
   espacio: Espacio;
   deporte?: Deporte;
@@ -23,7 +33,7 @@ export const TarjetaEspacio: React.FC<Props> = ({
     <TouchableOpacity
       style={styles.card}
       activeOpacity={0.88}
-      onPress={() => router.push(`/espacio/${espacio.id}` as any)}
+      onPress={() => router.push(`/espacio/${espacio.id}`)}
     >
       <View style={styles.imageContainer}>
         <Image
@@ -33,7 +43,7 @@ export const TarjetaEspacio: React.FC<Props> = ({
           style={styles.image}
         />
         <View style={[styles.badgeDeporte, { backgroundColor: deporte?.color || '#2E7D32' }]}>
-          <Ionicons name={(deporte?.icono as any) || 'football-outline'} size={14} color="#FFF" />
+          <Ionicons name={iconoDeporte(deporte?.icono)} size={14} color="#FFF" />
           <Text style={styles.textoDeporte}>{deporte?.nombre || 'Deporte'}</Text>
         </View>
 

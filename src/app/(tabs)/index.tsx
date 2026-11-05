@@ -13,7 +13,7 @@ import {
 import { Espacio, Deporte } from '../../tipos';
 import { obtenerEspacios, obtenerDeportes } from '../../servicios/reservas';
 import { marcarFavorito } from '../../servicios/auth';
-import { TarjetaEspacio } from '../../componentes/TarjetaEspacio';
+import { TarjetaEspacio, iconoDeporte } from '../../componentes/TarjetaEspacio';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 
@@ -127,7 +127,7 @@ export default function CatalogScreen() {
                 style={[styles.chipDeporte, activo && { backgroundColor: item.color || '#4CAF50' }]}
                 onPress={() => setDeporteSeleccionado(item.id)}
               >
-                <Ionicons name={(item.icono as any) || 'football-outline'} size={14} color="#FFF" />
+                <Ionicons name={iconoDeporte(item.icono)} size={14} color="#FFF" />
                 <Text style={styles.chipText}>{item.nombre}</Text>
               </TouchableOpacity>
             );

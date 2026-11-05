@@ -96,7 +96,7 @@ export default function MyReservationsScreen() {
         <Text style={styles.subtituloSinSesion}>
           Podés consultar tus códigos QR guardados para mostrar en la puerta del complejo incluso sin conexión a internet.
         </Text>
-        <TouchableOpacity style={styles.botonLogin} onPress={() => router.push('/(auth)/login' as any)}>
+        <TouchableOpacity style={styles.botonLogin} onPress={() => router.push('/(auth)/login')}>
           <Text style={styles.textoBotonLogin}>Iniciar Sesión / Registrarse</Text>
         </TouchableOpacity>
       </View>
@@ -181,7 +181,7 @@ export default function MyReservationsScreen() {
                   <View style={styles.actionsRow}>
                     <TouchableOpacity
                       style={styles.botonQr}
-                      onPress={() => router.push(`/reserva/${item.id}` as any)}
+                      onPress={() => router.push(`/reserva/${item.id}`)}
                     >
                       <Ionicons name="qr-code" size={18} color="#FFF" />
                       <Text style={styles.textoBotonQr}>Ver QR de Ingreso</Text>

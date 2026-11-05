@@ -115,7 +115,7 @@ export default function ReservationDetailScreen() {
 
       {/* Botones de Acción */}
       <View style={styles.accionesWrapper}>
-        <TouchableOpacity style={styles.botonComoLlegar} onPress={() => router.push('/(tabs)/mapa' as any)}>
+        <TouchableOpacity style={styles.botonComoLlegar} onPress={() => router.push('/(tabs)/mapa')}>
           <Ionicons name="navigate-outline" size={18} color="#FFF" />
           <Text style={styles.textoBotonAccion}>Cómo Llegar</Text>
         </TouchableOpacity>
