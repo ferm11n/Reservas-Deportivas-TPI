@@ -17,7 +17,7 @@
 </p>
 
 <p align="center">
-  🎬 <strong><a href="docs/media/demo-app.mp4">Ver la demo completa en video (3:40 min)</a></strong> — catálogo, reserva con QR,
+  🎬 <strong><a href="docs/media/demo-app.mp4">Ver la demo completa en video (1:50 min)</a></strong> — catálogo, reserva con QR,
   <br>modo offline, escáner del encargado y panel de administración.
 </p>
 
