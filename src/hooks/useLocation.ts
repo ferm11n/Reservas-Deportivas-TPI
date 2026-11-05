@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Platform } from 'react-native';
 import { Coordenadas } from '../tipos';
 
@@ -13,11 +13,7 @@ export const useLocation = () => {
   const [permisoDenegado, setPermisoDenegado] = useState(false);
   const [cargandoUbicacion, setCargandoUbicacion] = useState(true);
 
-  useEffect(() => {
-    obtenerUbicacion();
-  }, []);
-
-  const obtenerUbicacion = async () => {
+  const obtenerUbicacion = useCallback(async () => {
     setCargandoUbicacion(true);
     if (Platform.OS === 'web') {
       setUbicacionUsuario(VILLAGUAY_CENTRO);
@@ -26,7 +22,9 @@ export const useLocation = () => {
     }
 
     try {
-      const Location = require('expo-location');
+      // expo-location es nativo: se carga recién después del guard de plataforma.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const Location = require('expo-location') as typeof import('expo-location');
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setPermisoDenegado(true);
@@ -49,7 +47,11 @@ export const useLocation = () => {
     } finally {
       setCargandoUbicacion(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    obtenerUbicacion();
+  }, [obtenerUbicacion]);
 
   /**
    * Fórmula de Haversine para calcular distancia en km entre dos puntos

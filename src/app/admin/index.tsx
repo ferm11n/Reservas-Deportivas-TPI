@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -72,24 +72,7 @@ export default function AdminScreen() {
   // Tarifas
   const [nuevoPrecio, setNuevoPrecio] = useState<string>('15000');
 
-  useEffect(() => {
-    cargarDatosIniciales();
-  }, []);
-
-  useEffect(() => {
-    if (espacioIdSeleccionado && fechaAgenda) {
-      cargarAgendaDelDia();
-    }
-  }, [espacioIdSeleccionado, fechaAgenda]);
-
-  useEffect(() => {
-    if (espacioIdSeleccionado) {
-      cargarBloqueos();
-      cargarFijas();
-    }
-  }, [espacioIdSeleccionado]);
-
-  const cargarDatosIniciales = async () => {
+  const cargarDatosIniciales = useCallback(async () => {
     setCargando(true);
     const res = await obtenerEspacios();
     if ('datos' in res) {
@@ -102,9 +85,9 @@ export default function AdminScreen() {
       Alert.alert('No se pudieron cargar los espacios', res.error.mensaje);
     }
     setCargando(false);
-  };
+  }, []);
 
-  const cargarAgendaDelDia = async () => {
+  const cargarAgendaDelDia = useCallback(async () => {
     setCargandoAgenda(true);
     const [agenda, reservas] = await Promise.all([
       obtenerAgenda(fechaAgenda),
@@ -118,19 +101,36 @@ export default function AdminScreen() {
       if (error) Alert.alert('No se pudo cargar la agenda', error.mensaje);
     }
     setCargandoAgenda(false);
-  };
+  }, [fechaAgenda, espacioIdSeleccionado]);
 
-  const cargarBloqueos = async () => {
+  const cargarBloqueos = useCallback(async () => {
     const res = await obtenerBloqueos(espacioIdSeleccionado);
     if ('datos' in res) setListaBloqueos(res.datos);
     else Alert.alert('No se pudieron cargar los bloqueos', res.error.mensaje);
-  };
+  }, [espacioIdSeleccionado]);
 
-  const cargarFijas = async () => {
+  const cargarFijas = useCallback(async () => {
     const res = await obtenerFijas(espacioIdSeleccionado);
     if ('datos' in res) setReservasFijas(res.datos);
     else Alert.alert('No se pudieron cargar las reservas fijas', res.error.mensaje);
-  };
+  }, [espacioIdSeleccionado]);
+
+  useEffect(() => {
+    cargarDatosIniciales();
+  }, [cargarDatosIniciales]);
+
+  useEffect(() => {
+    if (espacioIdSeleccionado && fechaAgenda) {
+      cargarAgendaDelDia();
+    }
+  }, [espacioIdSeleccionado, fechaAgenda, cargarAgendaDelDia]);
+
+  useEffect(() => {
+    if (espacioIdSeleccionado) {
+      cargarBloqueos();
+      cargarFijas();
+    }
+  }, [espacioIdSeleccionado, cargarBloqueos, cargarFijas]);
 
   const handleCargarBloqueo = async () => {
     if (!motivoBloqueo.trim()) {

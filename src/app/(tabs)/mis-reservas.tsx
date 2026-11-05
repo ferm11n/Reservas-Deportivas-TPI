@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import { Reserva, Espacio } from '../../tipos';
 import { obtenerEspacios, obtenerMisReservas, cancelarReserva } from '../../servicios/reservas';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 
 export default function MyReservationsScreen() {
   const router = useRouter();
@@ -23,19 +23,17 @@ export default function MyReservationsScreen() {
   const [espacios, setEspacios] = useState<Espacio[]>([]);
   const [cargando, setCargando] = useState(true);
 
-  useEffect(() => {
-    cargarDatos();
-  }, [usuario, tabActiva]);
+  const usuarioId = usuario?.id ?? null;
 
-  const cargarDatos = async () => {
+  const cargarDatos = useCallback(async () => {
     setCargando(true);
     const resEsp = await obtenerEspacios();
     if ('datos' in resEsp) {
       setEspacios(resEsp.datos);
     }
 
-    if (usuario) {
-      const resReservas = await obtenerMisReservas(usuario.id, tabActiva);
+    if (usuarioId) {
+      const resReservas = await obtenerMisReservas(usuarioId, tabActiva);
       if ('datos' in resReservas) {
         setReservas(resReservas.datos);
       } else {
@@ -46,7 +44,15 @@ export default function MyReservationsScreen() {
       setReservas([]);
     }
     setCargando(false);
-  };
+  }, [usuarioId, tabActiva]);
+
+  // La pantalla no se desmonta al navegar entre tabs: useFocusEffect recarga
+  // las reservas al volver (por ejemplo, después de reservar en "Turnos").
+  useFocusEffect(
+    useCallback(() => {
+      cargarDatos();
+    }, [cargarDatos])
+  );
 
   const handleCancelar = (reserva: Reserva, espacioNombre: string) => {
     const cancelableHasta = new Date(reserva.cancelableHasta);

@@ -17,7 +17,9 @@ const memoriaCache: Record<string, string> = {};
 export const inicializarBaseDeDatos = async (): Promise<void> => {
   if (Platform.OS === 'web' || dbInstance) return;
   try {
-    const SQLite = require('expo-sqlite');
+    // expo-sqlite es nativo: se carga después del guard de plataforma.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const SQLite = require('expo-sqlite') as typeof import('expo-sqlite');
     dbInstance = await SQLite.openDatabaseAsync('reservas_vgy.db');
     await dbInstance.execAsync(`
       PRAGMA journal_mode = WAL;

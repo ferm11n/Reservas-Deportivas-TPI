@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -24,14 +24,12 @@ export default function ReservationDetailScreen() {
   const [espacio, setEspacio] = useState<Espacio | null>(null);
   const [cargando, setCargando] = useState(true);
 
-  useEffect(() => {
-    if (id) cargarDetalle();
-  }, [id]);
+  const usuarioId = usuario?.id ?? null;
 
-  const cargarDetalle = async () => {
+  const cargarDetalle = useCallback(async () => {
     setCargando(true);
-    if (usuario) {
-      const resultado = await obtenerReserva(id, usuario.id);
+    if (usuarioId) {
+      const resultado = await obtenerReserva(id, usuarioId);
       if ('datos' in resultado) {
         setReserva(resultado.datos);
         const resEsp = await obtenerEspacioPorId(resultado.datos.espacioId);
@@ -41,7 +39,11 @@ export default function ReservationDetailScreen() {
       }
     }
     setCargando(false);
-  };
+  }, [id, usuarioId]);
+
+  useEffect(() => {
+    if (id) cargarDetalle();
+  }, [id, cargarDetalle]);
 
   const handleCancelar = () => {
     if (!reserva) return;

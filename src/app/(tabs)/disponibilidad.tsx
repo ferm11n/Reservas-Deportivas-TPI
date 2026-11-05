@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -34,18 +34,7 @@ export default function AvailabilityScreen() {
   const [errorCarga, setErrorCarga] = useState<string | null>(null);
   const [procesandoReserva, setProcesandoReserva] = useState(false);
 
-  useEffect(() => {
-    generarProximos7Dias();
-    cargarEspacios();
-  }, []);
-
-  useEffect(() => {
-    if (espacioIdSeleccionado && fechaSeleccionada) {
-      cargarGrilla();
-    }
-  }, [espacioIdSeleccionado, fechaSeleccionada]);
-
-  const generarProximos7Dias = () => {
+  const generarProximos7Dias = useCallback(() => {
     const lista = [];
     const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
     const hoy = new Date();
@@ -61,19 +50,19 @@ export default function AvailabilityScreen() {
 
     setDiasProximos(lista);
     setFechaSeleccionada(lista[0].fechaStr);
-  };
+  }, []);
 
-  const cargarEspacios = async () => {
+  const cargarEspacios = useCallback(async () => {
     const res = await obtenerEspacios();
     if ('datos' in res) {
       setEspacios(res.datos);
-      if (res.datos.length > 0 && !espacioIdSeleccionado) {
-        setEspacioIdSeleccionado(res.datos[0].id);
+      if (res.datos.length > 0) {
+        setEspacioIdSeleccionado((previo) => previo || res.datos[0].id);
       }
     }
-  };
+  }, []);
 
-  const cargarGrilla = async () => {
+  const cargarGrilla = useCallback(async () => {
     setCargando(true);
     setErrorCarga(null);
     setTurnoSeleccionado(null);
@@ -84,7 +73,18 @@ export default function AvailabilityScreen() {
       setErrorCarga(res.error.mensaje);
     }
     setCargando(false);
-  };
+  }, [espacioIdSeleccionado, fechaSeleccionada]);
+
+  useEffect(() => {
+    generarProximos7Dias();
+    cargarEspacios();
+  }, [generarProximos7Dias, cargarEspacios]);
+
+  useEffect(() => {
+    if (espacioIdSeleccionado && fechaSeleccionada) {
+      cargarGrilla();
+    }
+  }, [espacioIdSeleccionado, fechaSeleccionada, cargarGrilla]);
 
   const handleReservar = async () => {
     if (!usuario) {

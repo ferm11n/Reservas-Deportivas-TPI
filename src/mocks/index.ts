@@ -1,4 +1,4 @@
-import { Deporte, Espacio, Usuario, ReservaFija, Reserva, Turno } from '../tipos';
+import { Deporte, Espacio, Usuario, ReservaFija, Reserva } from '../tipos';
 
 export const MOCK_DEPORTES: Deporte[] = [
   { id: 'dep-futbol5', nombre: 'Fútbol 5', icono: 'football-outline', color: '#2E7D32' },

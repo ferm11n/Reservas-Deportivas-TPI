@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -36,15 +36,7 @@ export default function AttendantScanScreen() {
     mensaje: string;
   } | null>(null);
 
-  useEffect(() => {
-    cargarEspacios();
-  }, []);
-
-  useEffect(() => {
-    if (espacioId) cargarReservas();
-  }, [espacioId]);
-
-  const cargarEspacios = async () => {
+  const cargarEspacios = useCallback(async () => {
     const res = await obtenerEspacios();
     if ('datos' in res) {
       setEspacios(res.datos);
@@ -53,13 +45,21 @@ export default function AttendantScanScreen() {
       Alert.alert('No se pudieron cargar las canchas', res.error.mensaje);
     }
     setCargandoEspacios(false);
-  };
+  }, []);
 
-  const cargarReservas = async () => {
+  const cargarReservas = useCallback(async () => {
     const res = await obtenerReservasDeTodos({ fecha, espacioId });
     if ('datos' in res) setReservas(res.datos);
     else Alert.alert('No se pudieron cargar las reservas', res.error.mensaje);
-  };
+  }, [fecha, espacioId]);
+
+  useEffect(() => {
+    cargarEspacios();
+  }, [cargarEspacios]);
+
+  useEffect(() => {
+    if (espacioId) cargarReservas();
+  }, [espacioId, cargarReservas]);
 
   const handleBarcodeScanned = async ({ data }: { data: string }) => {
     if (!escaneando || procesando) return;

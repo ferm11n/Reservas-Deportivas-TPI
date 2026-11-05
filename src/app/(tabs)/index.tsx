@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -30,11 +30,7 @@ export default function CatalogScreen() {
   const [complejoSeleccionado, setComplejoSeleccionado] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
 
-  useEffect(() => {
-    cargarDatos();
-  }, []);
-
-  const cargarDatos = async () => {
+  const cargarDatos = useCallback(async () => {
     setCargando(true);
     setError(null);
     try {
@@ -56,7 +52,11 @@ export default function CatalogScreen() {
       setCargando(false);
       setRefrescando(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    cargarDatos();
+  }, [cargarDatos]);
 
   const onRefresh = () => {
     setRefrescando(true);
