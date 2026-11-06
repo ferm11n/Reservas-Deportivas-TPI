@@ -5,18 +5,30 @@ import { useVideoPlayer, VideoView } from 'expo-video';
 interface Props {
   videoUrl?: string | null;
   nombreCancha: string;
+  deporteId?: string;
 }
 
-const VIDEO_RECORRIDO_LOCAL = require('../../assets/videos/videoCancha.mp4');
+// Video local histórico de respaldo
+const VIDEO_DEFAULT = require('../../assets/videos/videoCancha.mp4');
+const VIDEOS_LOCALES: Record<string, any> = {
+  'dep-futbol5': require('../../assets/videos/futbol5.mp4'),
+  'dep-basquet': require('../../assets/videos/basquet.mp4'),
+  'dep-tenis': require('../../assets/videos/tenis.mp4'),
+  'dep-voley': require('../../assets/videos/voley.mp4'),
+  'dep-gimnasio': require('../../assets/videos/MultideporteGym.mp4'),
+};
 
-export const VideoViewer: React.FC<Props> = ({ videoUrl, nombreCancha }) => {
-  const player = useVideoPlayer(videoUrl || VIDEO_RECORRIDO_LOCAL, (playerInstance) => {
+export const VideoViewer: React.FC<Props> = ({ nombreCancha, deporteId }) => {
+  // Busca el video local propio de ese deporte; si no está, usa el de respaldo
+  const fuenteVideo = (deporteId && VIDEOS_LOCALES[deporteId]) || VIDEO_DEFAULT;
+
+  const player = useVideoPlayer(fuenteVideo, (playerInstance) => {
     playerInstance.loop = true;
   });
 
   return (
     <View style={styles.container}>
-      <Text style={styles.titulo}>📹 Recorrido Virtual — {nombreCancha}</Text>
+      <Text style={styles.titulo}>Recorrido Virtual — {nombreCancha}</Text>
       <View style={styles.videoWrapper}>
         <VideoView
           style={styles.video}
