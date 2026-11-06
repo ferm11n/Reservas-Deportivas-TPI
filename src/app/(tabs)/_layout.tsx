@@ -1,11 +1,9 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../context/AuthContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function TabsLayout() {
-  const { usuario } = useAuth();
   const insets = useSafeAreaInsets();
   const bottomPadding = Math.max(insets.bottom, 14);
   const barHeight = 60 + bottomPadding;

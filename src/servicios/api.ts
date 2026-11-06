@@ -12,7 +12,20 @@ import axios, { isAxiosError } from 'axios';
 // Desde el teléfono no sirve localhost: va la IP de la computadora en la red wifi.
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.36:3000').replace(/\/$/, '');
 
-const TIEMPO_MAXIMO_MS = 60000;
+// 15 s: suficiente para una red lenta, sin dejar a la persona mirando un
+// spinner un minuto entero cuando la API no responde.
+const TIEMPO_MAXIMO_MS = 15000;
+
+/**
+ * El AuthContext registra acá qué hacer cuando la API responde 401 con un token
+ * puesto: la sesión venció y hay que limpiarla. Se usa un callback para que la
+ * capa de servicios no dependa de React ni del contexto.
+ */
+let alExpirarSesion: (() => void) | null = null;
+
+export const registrarManejadorSesionExpirada = (manejador: (() => void) | null): void => {
+  alExpirarSesion = manejador;
+};
 
 type Metodo = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 
@@ -38,9 +51,13 @@ export const pedir = async <T>(ruta: string, opciones: OpcionesPedido = {}): Pro
   const cabeceras: Record<string, string> = { Accept: 'application/json' };
   if (cuerpo !== undefined) cabeceras['Content-Type'] = 'application/json';
 
+  let teniaToken = false;
   if (conSesion) {
     const token = await obtenerTokenDeSecureStore();
-    if (token) cabeceras.Authorization = `Bearer ${token}`;
+    if (token) {
+      cabeceras.Authorization = `Bearer ${token}`;
+      teniaToken = true;
+    }
   }
 
   try {
@@ -78,6 +95,9 @@ export const pedir = async <T>(ruta: string, opciones: OpcionesPedido = {}): Pro
     if (!isAxiosError(error)) throw error;
 
     if (error.response) {
+      if (error.response.status === 401 && teniaToken) {
+        alExpirarSesion?.();
+      }
       const json: unknown = error.response.data;
       if (json && typeof json === 'object') {
         const sobre = json as { error?: unknown };

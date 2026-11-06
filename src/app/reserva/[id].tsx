@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,15 +23,14 @@ export default function ReservationDetailScreen() {
   const [reserva, setReserva] = useState<Reserva | null>(null);
   const [espacio, setEspacio] = useState<Espacio | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [cancelando, setCancelando] = useState(false);
 
-  useEffect(() => {
-    if (id) cargarDetalle();
-  }, [id]);
+  const usuarioId = usuario?.id ?? null;
 
-  const cargarDetalle = async () => {
+  const cargarDetalle = useCallback(async () => {
     setCargando(true);
-    if (usuario) {
-      const resultado = await obtenerReserva(id, usuario.id);
+    if (usuarioId) {
+      const resultado = await obtenerReserva(id, usuarioId);
       if ('datos' in resultado) {
         setReserva(resultado.datos);
         const resEsp = await obtenerEspacioPorId(resultado.datos.espacioId);
@@ -41,7 +40,11 @@ export default function ReservationDetailScreen() {
       }
     }
     setCargando(false);
-  };
+  }, [id, usuarioId]);
+
+  useEffect(() => {
+    if (id) cargarDetalle();
+  }, [id, cargarDetalle]);
 
   const handleCancelar = () => {
     if (!reserva) return;
@@ -58,12 +61,17 @@ export default function ReservationDetailScreen() {
         text: 'Sí, Cancelar',
         style: 'destructive',
         onPress: async () => {
-          const resultado = await cancelarReserva(reserva.id);
-          if ('error' in resultado) {
-            Alert.alert('No se pudo cancelar', resultado.error.mensaje);
-          } else {
-            Alert.alert('Reserva Cancelada', 'La reserva ha sido cancelada.');
-            cargarDetalle();
+          setCancelando(true);
+          try {
+            const resultado = await cancelarReserva(reserva.id);
+            if ('error' in resultado) {
+              Alert.alert('No se pudo cancelar', resultado.error.mensaje);
+            } else {
+              Alert.alert('Reserva Cancelada', 'La reserva ha sido cancelada.');
+              cargarDetalle();
+            }
+          } finally {
+            setCancelando(false);
           }
         },
       },
@@ -113,13 +121,17 @@ export default function ReservationDetailScreen() {
 
       {/* Botones de Acción */}
       <View style={styles.accionesWrapper}>
-        <TouchableOpacity style={styles.botonComoLlegar} onPress={() => router.push('/(tabs)/mapa' as any)}>
+        <TouchableOpacity style={styles.botonComoLlegar} onPress={() => router.push('/(tabs)/mapa')}>
           <Ionicons name="navigate-outline" size={18} color="#FFF" />
           <Text style={styles.textoBotonAccion}>Cómo Llegar</Text>
         </TouchableOpacity>
 
         {reserva.estado === 'confirmada' && (
-          <TouchableOpacity style={styles.botonCancelar} onPress={handleCancelar}>
+          <TouchableOpacity
+            style={[styles.botonCancelar, cancelando && styles.botonDeshabilitado]}
+            disabled={cancelando}
+            onPress={handleCancelar}
+          >
             <Ionicons name="close-circle-outline" size={18} color="#FF8A80" />
             <Text style={styles.textoBotonCancelar}>Cancelar Reserva</Text>
           </TouchableOpacity>
@@ -197,6 +209,9 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 14,
     fontWeight: '700',
+  },
+  botonDeshabilitado: {
+    opacity: 0.5,
   },
   botonCancelar: {
     backgroundColor: '#B71C1C33',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,9 +10,10 @@ import {
 } from 'react-native';
 import { Reserva, Espacio } from '../../tipos';
 import { obtenerEspacios, obtenerMisReservas, cancelarReserva } from '../../servicios/reservas';
+import { filtrarReservasPorPestania, contarReservasActivas } from '../../servicios/filtrosReservas';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 
 export default function MyReservationsScreen() {
   const router = useRouter();
@@ -22,20 +23,19 @@ export default function MyReservationsScreen() {
   const [reservas, setReservas] = useState<Reserva[]>([]);
   const [espacios, setEspacios] = useState<Espacio[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [cancelando, setCancelando] = useState(false);
 
-  useEffect(() => {
-    cargarDatos();
-  }, [usuario, tabActiva]);
+  const usuarioId = usuario?.id ?? null;
 
-  const cargarDatos = async () => {
+  const cargarDatos = useCallback(async () => {
     setCargando(true);
     const resEsp = await obtenerEspacios();
     if ('datos' in resEsp) {
       setEspacios(resEsp.datos);
     }
 
-    if (usuario) {
-      const resReservas = await obtenerMisReservas(usuario.id, tabActiva);
+    if (usuarioId) {
+      const resReservas = await obtenerMisReservas(usuarioId, tabActiva);
       if ('datos' in resReservas) {
         setReservas(resReservas.datos);
       } else {
@@ -46,7 +46,15 @@ export default function MyReservationsScreen() {
       setReservas([]);
     }
     setCargando(false);
-  };
+  }, [usuarioId, tabActiva]);
+
+  // La pantalla no se desmonta al navegar entre tabs: useFocusEffect recarga
+  // las reservas al volver (por ejemplo, después de reservar en "Turnos").
+  useFocusEffect(
+    useCallback(() => {
+      cargarDatos();
+    }, [cargarDatos])
+  );
 
   const handleCancelar = (reserva: Reserva, espacioNombre: string) => {
     const cancelableHasta = new Date(reserva.cancelableHasta);
@@ -62,25 +70,24 @@ export default function MyReservationsScreen() {
         text: 'Sí, Cancelar',
         style: 'destructive',
         onPress: async () => {
-          const resultado = await cancelarReserva(reserva.id);
-          if ('error' in resultado) {
-            Alert.alert('No se pudo cancelar', resultado.error.mensaje);
-          } else {
-            Alert.alert('Reserva Cancelada', 'La reserva ha sido cancelada correctamente.');
-            cargarDatos();
+          setCancelando(true);
+          try {
+            const resultado = await cancelarReserva(reserva.id);
+            if ('error' in resultado) {
+              Alert.alert('No se pudo cancelar', resultado.error.mensaje);
+            } else {
+              Alert.alert('Reserva Cancelada', 'La reserva ha sido cancelada correctamente.');
+              cargarDatos();
+            }
+          } finally {
+            setCancelando(false);
           }
         },
       },
     ]);
   };
 
-  const reservasFiltradas = reservas.filter((r) => {
-    if (tabActiva === 'proximas') {
-      return r.estado === 'confirmada';
-    } else {
-      return r.estado === 'cumplida' || r.estado === 'cancelada' || r.estado === 'ausente';
-    }
-  });
+  const reservasFiltradas = filtrarReservasPorPestania(reservas, tabActiva);
 
   if (!usuario) {
     return (
@@ -90,7 +97,7 @@ export default function MyReservationsScreen() {
         <Text style={styles.subtituloSinSesion}>
           Podés consultar tus códigos QR guardados para mostrar en la puerta del complejo incluso sin conexión a internet.
         </Text>
-        <TouchableOpacity style={styles.botonLogin} onPress={() => router.push('/(auth)/login' as any)}>
+        <TouchableOpacity style={styles.botonLogin} onPress={() => router.push('/(auth)/login')}>
           <Text style={styles.textoBotonLogin}>Iniciar Sesión / Registrarse</Text>
         </TouchableOpacity>
       </View>
@@ -106,7 +113,7 @@ export default function MyReservationsScreen() {
           onPress={() => setTabActiva('proximas')}
         >
           <Text style={[styles.tabText, tabActiva === 'proximas' && styles.tabTextActiva]}>
-            PRÓXIMAS ({reservas.filter((r) => r.estado === 'confirmada').length}/3)
+            PRÓXIMAS ({contarReservasActivas(reservas)}/3)
           </Text>
         </TouchableOpacity>
 
@@ -175,14 +182,15 @@ export default function MyReservationsScreen() {
                   <View style={styles.actionsRow}>
                     <TouchableOpacity
                       style={styles.botonQr}
-                      onPress={() => router.push(`/reserva/${item.id}` as any)}
+                      onPress={() => router.push(`/reserva/${item.id}`)}
                     >
                       <Ionicons name="qr-code" size={18} color="#FFF" />
                       <Text style={styles.textoBotonQr}>Ver QR de Ingreso</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                      style={styles.botonCancelar}
+                      style={[styles.botonCancelar, cancelando && styles.botonDeshabilitado]}
+                      disabled={cancelando}
                       onPress={() => handleCancelar(item, nombreEspacio)}
                     >
                       <Text style={styles.textoBotonCancelar}>Cancelar</Text>
@@ -320,6 +328,9 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 13,
     fontWeight: '700',
+  },
+  botonDeshabilitado: {
+    opacity: 0.5,
   },
   botonCancelar: {
     flex: 1,

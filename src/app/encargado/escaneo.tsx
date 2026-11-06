@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Platform,
+  Linking,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Espacio, Reserva } from '../../tipos';
@@ -36,15 +37,7 @@ export default function AttendantScanScreen() {
     mensaje: string;
   } | null>(null);
 
-  useEffect(() => {
-    cargarEspacios();
-  }, []);
-
-  useEffect(() => {
-    if (espacioId) cargarReservas();
-  }, [espacioId]);
-
-  const cargarEspacios = async () => {
+  const cargarEspacios = useCallback(async () => {
     const res = await obtenerEspacios();
     if ('datos' in res) {
       setEspacios(res.datos);
@@ -53,13 +46,21 @@ export default function AttendantScanScreen() {
       Alert.alert('No se pudieron cargar las canchas', res.error.mensaje);
     }
     setCargandoEspacios(false);
-  };
+  }, []);
 
-  const cargarReservas = async () => {
+  const cargarReservas = useCallback(async () => {
     const res = await obtenerReservasDeTodos({ fecha, espacioId });
     if ('datos' in res) setReservas(res.datos);
     else Alert.alert('No se pudieron cargar las reservas', res.error.mensaje);
-  };
+  }, [fecha, espacioId]);
+
+  useEffect(() => {
+    cargarEspacios();
+  }, [cargarEspacios]);
+
+  useEffect(() => {
+    if (espacioId) cargarReservas();
+  }, [espacioId, cargarReservas]);
 
   const handleBarcodeScanned = async ({ data }: { data: string }) => {
     if (!escaneando || procesando) return;
@@ -110,15 +111,25 @@ export default function AttendantScanScreen() {
   }
 
   if (Platform.OS !== 'web' && !permission.granted) {
+    // Cuando canAskAgain es false el sistema ya no vuelve a mostrar el cartel:
+    // el único camino es que la persona lo habilite desde Ajustes.
+    const sinReintento = !permission.canAskAgain;
     return (
       <View style={styles.centrado}>
         <Ionicons name="camera-outline" size={56} color="#FFD54F" />
         <Text style={styles.tituloBiometria}>Permiso de Cámara Requerido</Text>
         <Text style={styles.subBiometria}>
-          Necesitamos acceso a la cámara del teléfono para escanear los códigos QR de las reservas.
+          {sinReintento
+            ? 'El permiso de cámara está denegado. Para escanear códigos QR, habilitalo desde los Ajustes del teléfono.'
+            : 'Necesitamos acceso a la cámara del teléfono para escanear los códigos QR de las reservas.'}
         </Text>
-        <TouchableOpacity style={styles.botonReintentarBio} onPress={requestPermission}>
-          <Text style={styles.textoBotonBio}>Conceder Permiso de Cámara</Text>
+        <TouchableOpacity
+          style={styles.botonReintentarBio}
+          onPress={sinReintento ? () => Linking.openSettings() : requestPermission}
+        >
+          <Text style={styles.textoBotonBio}>
+            {sinReintento ? 'Abrir Ajustes' : 'Conceder Permiso de Cámara'}
+          </Text>
         </TouchableOpacity>
       </View>
     );
@@ -226,7 +237,8 @@ export default function AttendantScanScreen() {
               <View key={reserva.id} style={styles.reservaFila}>
                 <Text style={styles.reservaId}>{reserva.codigoQr} · {reserva.turnoId}</Text>
                 <TouchableOpacity
-                  style={styles.botonAusente}
+                  style={[styles.botonAusente, procesando && styles.botonDeshabilitado]}
+                  disabled={procesando}
                   onPress={() => {
                     Alert.alert('Marcar como ausente', '¿Confirmás que la persona no se presentó?', [
                       { text: 'Cancelar', style: 'cancel' },
@@ -234,13 +246,18 @@ export default function AttendantScanScreen() {
                         text: 'Marcar ausente',
                         style: 'destructive',
                         onPress: async () => {
-                          const resultado = await marcarAusente(reserva.id);
-                          if ('error' in resultado) {
-                            Alert.alert('No se pudo marcar ausente', resultado.error.mensaje);
-                            return;
+                          setProcesando(true);
+                          try {
+                            const resultado = await marcarAusente(reserva.id);
+                            if ('error' in resultado) {
+                              Alert.alert('No se pudo marcar ausente', resultado.error.mensaje);
+                              return;
+                            }
+                            await cargarReservas();
+                            Alert.alert('Ausencia registrada', 'La reserva quedó marcada como ausente.');
+                          } finally {
+                            setProcesando(false);
                           }
-                          await cargarReservas();
-                          Alert.alert('Ausencia registrada', 'La reserva quedó marcada como ausente.');
                         },
                       },
                     ]);
@@ -392,6 +409,9 @@ const styles = StyleSheet.create({
     color: '#DDD',
     fontSize: 11,
     flex: 1,
+  },
+  botonDeshabilitado: {
+    opacity: 0.5,
   },
   botonAusente: {
     backgroundColor: '#7F1D1D',

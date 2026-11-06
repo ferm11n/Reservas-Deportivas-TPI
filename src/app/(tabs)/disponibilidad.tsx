@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -34,18 +34,7 @@ export default function AvailabilityScreen() {
   const [errorCarga, setErrorCarga] = useState<string | null>(null);
   const [procesandoReserva, setProcesandoReserva] = useState(false);
 
-  useEffect(() => {
-    generarProximos7Dias();
-    cargarEspacios();
-  }, []);
-
-  useEffect(() => {
-    if (espacioIdSeleccionado && fechaSeleccionada) {
-      cargarGrilla();
-    }
-  }, [espacioIdSeleccionado, fechaSeleccionada]);
-
-  const generarProximos7Dias = () => {
+  const generarProximos7Dias = useCallback(() => {
     const lista = [];
     const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
     const hoy = new Date();
@@ -61,19 +50,19 @@ export default function AvailabilityScreen() {
 
     setDiasProximos(lista);
     setFechaSeleccionada(lista[0].fechaStr);
-  };
+  }, []);
 
-  const cargarEspacios = async () => {
+  const cargarEspacios = useCallback(async () => {
     const res = await obtenerEspacios();
     if ('datos' in res) {
       setEspacios(res.datos);
-      if (res.datos.length > 0 && !espacioIdSeleccionado) {
-        setEspacioIdSeleccionado(res.datos[0].id);
+      if (res.datos.length > 0) {
+        setEspacioIdSeleccionado((previo) => previo || res.datos[0].id);
       }
     }
-  };
+  }, []);
 
-  const cargarGrilla = async () => {
+  const cargarGrilla = useCallback(async () => {
     setCargando(true);
     setErrorCarga(null);
     setTurnoSeleccionado(null);
@@ -84,7 +73,18 @@ export default function AvailabilityScreen() {
       setErrorCarga(res.error.mensaje);
     }
     setCargando(false);
-  };
+  }, [espacioIdSeleccionado, fechaSeleccionada]);
+
+  useEffect(() => {
+    generarProximos7Dias();
+    cargarEspacios();
+  }, [generarProximos7Dias, cargarEspacios]);
+
+  useEffect(() => {
+    if (espacioIdSeleccionado && fechaSeleccionada) {
+      cargarGrilla();
+    }
+  }, [espacioIdSeleccionado, fechaSeleccionada, cargarGrilla]);
 
   const handleReservar = async () => {
     if (!usuario) {
@@ -93,7 +93,7 @@ export default function AvailabilityScreen() {
         'Para reservar un turno debes iniciar sesión o registrarte.',
         [
           { text: 'Cancelar', style: 'cancel' },
-          { text: 'Iniciar Sesión', onPress: () => router.push('/(auth)/login' as any) },
+          { text: 'Iniciar Sesión', onPress: () => router.push('/(auth)/login') },
         ]
       );
       return;
@@ -125,12 +125,17 @@ export default function AvailabilityScreen() {
             if ('error' in res) {
               Alert.alert('Atención', res.error.mensaje);
             } else {
-              // Programar recordatorio de notificación local
-              programarRecordatorioTurno(
-                espacioActual.nombre,
-                fechaSeleccionada,
-                turnoSeleccionado.inicio
-              );
+              try {
+                await programarRecordatorioTurno(
+                  res.datos.id,
+                  espacioActual.nombre,
+                  fechaSeleccionada,
+                  turnoSeleccionado.inicio
+                );
+              } catch (error) {
+                // La reserva ya está hecha: el recordatorio fallido no debe cortar el flujo.
+                console.warn('No se pudo programar el recordatorio del turno:', error);
+              }
 
               Alert.alert(
                 '¡Reserva Confirmada! 🎉',
@@ -138,7 +143,7 @@ export default function AvailabilityScreen() {
                 [
                   {
                     text: 'Ver Mi QR',
-                    onPress: () => router.push(`/reserva/${res.datos.id}` as any),
+                    onPress: () => router.push(`/reserva/${res.datos.id}`),
                   },
                 ]
               );
@@ -245,7 +250,7 @@ export default function AvailabilityScreen() {
               <ActivityIndicator color="#FFF" />
             ) : (
               <>
-                <Text style={styles.textoBotonReservar}>R E S E R V A R</Text>
+                <Text style={styles.textoBotonReservar}>RESERVAR</Text>
                 <Ionicons name="checkmark-circle-outline" size={20} color="#FFF" />
               </>
             )}
@@ -424,5 +429,8 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '800',
+    // El espaciado visual va por estilo: "R E S E R V A R" con espacios
+    // se deletrea mal en los lectores de pantalla.
+    letterSpacing: 4,
   },
 });

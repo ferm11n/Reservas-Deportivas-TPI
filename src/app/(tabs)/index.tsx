@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
 import { Espacio, Deporte } from '../../tipos';
 import { obtenerEspacios, obtenerDeportes } from '../../servicios/reservas';
 import { marcarFavorito } from '../../servicios/auth';
-import { TarjetaEspacio } from '../../componentes/TarjetaEspacio';
+import { TarjetaEspacio, iconoDeporte } from '../../componentes/TarjetaEspacio';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 
@@ -30,16 +30,13 @@ export default function CatalogScreen() {
   const [complejoSeleccionado, setComplejoSeleccionado] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
 
-  useEffect(() => {
-    cargarDatos();
-  }, []);
-
-  const cargarDatos = async () => {
-    setCargando(true);
+  const cargarDatos = useCallback(async (esRefresco = false) => {
+    // Al refrescar no se enciende "cargando": eso desmontaría la FlatList
+    // y con ella el RefreshControl que muestra el gesto en curso.
+    if (!esRefresco) setCargando(true);
     setError(null);
     try {
-      const resEsp = await obtenerEspacios();
-      const resDep = await obtenerDeportes();
+      const [resEsp, resDep] = await Promise.all([obtenerEspacios(), obtenerDeportes()]);
 
       if ('error' in resEsp) {
         setError(resEsp.error.mensaje);
@@ -56,11 +53,15 @@ export default function CatalogScreen() {
       setCargando(false);
       setRefrescando(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    cargarDatos();
+  }, [cargarDatos]);
 
   const onRefresh = () => {
     setRefrescando(true);
-    cargarDatos();
+    cargarDatos(true);
   };
 
   const toggleFavorito = async (espacioId: string) => {
@@ -107,7 +108,12 @@ export default function CatalogScreen() {
           onChangeText={setBusqueda}
         />
         {busqueda.length > 0 && (
-          <TouchableOpacity onPress={() => setBusqueda('')}>
+          <TouchableOpacity
+            onPress={() => setBusqueda('')}
+            accessibilityRole="button"
+            accessibilityLabel="Borrar búsqueda"
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <Ionicons name="close-circle" size={18} color="#888" />
           </TouchableOpacity>
         )}
@@ -127,7 +133,7 @@ export default function CatalogScreen() {
                 style={[styles.chipDeporte, activo && { backgroundColor: item.color || '#4CAF50' }]}
                 onPress={() => setDeporteSeleccionado(item.id)}
               >
-                <Ionicons name={(item.icono as any) || 'football-outline'} size={14} color="#FFF" />
+                <Ionicons name={iconoDeporte(item.icono)} size={14} color="#FFF" />
                 <Text style={styles.chipText}>{item.nombre}</Text>
               </TouchableOpacity>
             );
@@ -173,7 +179,7 @@ export default function CatalogScreen() {
         <View style={styles.centrado}>
           <Ionicons name="alert-circle-outline" size={48} color="#D32F2F" />
           <Text style={styles.textoError}>{error}</Text>
-          <TouchableOpacity style={styles.botonReintentar} onPress={cargarDatos}>
+          <TouchableOpacity style={styles.botonReintentar} onPress={() => cargarDatos()}>
             <Text style={styles.textoBotonReintentar}>Reintentar</Text>
           </TouchableOpacity>
         </View>

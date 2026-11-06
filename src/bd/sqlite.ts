@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import type { SQLiteDatabase } from 'expo-sqlite';
 import { Reserva } from '../tipos';
 
 /**
@@ -8,7 +9,7 @@ import { Reserva } from '../tipos';
  * - cache: catálogo de espacios y deportes (JSON por clave)
  */
 
-let dbInstance: any = null;
+let dbInstance: SQLiteDatabase | null = null;
 
 // Respaldo en memoria para web o si SQLite no está disponible
 const memoriaReservas: Reserva[] = [];
@@ -17,7 +18,9 @@ const memoriaCache: Record<string, string> = {};
 export const inicializarBaseDeDatos = async (): Promise<void> => {
   if (Platform.OS === 'web' || dbInstance) return;
   try {
-    const SQLite = require('expo-sqlite');
+    // expo-sqlite es nativo: se carga después del guard de plataforma.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const SQLite = require('expo-sqlite') as typeof import('expo-sqlite');
     dbInstance = await SQLite.openDatabaseAsync('reservas_vgy.db');
     await dbInstance.execAsync(`
       PRAGMA journal_mode = WAL;
@@ -82,11 +85,11 @@ export const obtenerReservasOffline = async (usuarioId: string): Promise<Reserva
   const base = await db();
   if (base) {
     try {
-      const filas = await base.getAllAsync(
+      const filas = await base.getAllAsync<Reserva>(
         `SELECT * FROM reservas WHERE usuarioId = ? ORDER BY turnoId ASC;`,
         [usuarioId]
       );
-      return filas as Reserva[];
+      return filas;
     } catch (error) {
       console.error('Error leyendo reservas de SQLite:', error);
     }
@@ -126,7 +129,10 @@ export const leerDeCache = async <T>(clave: string): Promise<T | null> => {
   const base = await db();
   if (base) {
     try {
-      const fila = await base.getFirstAsync(`SELECT json FROM cache WHERE clave = ?;`, [clave]);
+      const fila = await base.getFirstAsync<{ json: string }>(
+        `SELECT json FROM cache WHERE clave = ?;`,
+        [clave]
+      );
       if (fila?.json) return JSON.parse(fila.json) as T;
     } catch (error) {
       console.error('Error leyendo caché de SQLite:', error);

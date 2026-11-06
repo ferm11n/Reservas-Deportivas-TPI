@@ -32,10 +32,10 @@ export default function ProfileScreen() {
         <Text style={styles.subtituloSinSesion}>
           Iniciá sesión o creá tu cuenta para gestionar tus turnos y acceder al sistema.
         </Text>
-        <TouchableOpacity style={styles.botonLogin} onPress={() => router.push('/(auth)/login' as any)}>
+        <TouchableOpacity style={styles.botonLogin} onPress={() => router.push('/(auth)/login')}>
           <Text style={styles.textoBotonLogin}>Iniciar Sesión</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.botonRegister} onPress={() => router.push('/(auth)/register' as any)}>
+        <TouchableOpacity style={styles.botonRegister} onPress={() => router.push('/(auth)/register')}>
           <Text style={styles.textoBotonRegister}>Crear Cuenta Nueva</Text>
         </TouchableOpacity>
       </View>
@@ -87,7 +87,7 @@ export default function ProfileScreen() {
           <Text style={styles.tituloSeccion}>MÓDULO DEL ENCARGADO</Text>
           <TouchableOpacity
             style={styles.botonModuloEncargado}
-            onPress={() => router.push('/encargado/escaneo' as any)}
+            onPress={() => router.push('/encargado/escaneo')}
           >
             <Ionicons name="qr-code-outline" size={22} color="#FFF" />
             <Text style={styles.textoBotonModulo}>Escanear QR de Ingreso en la Puerta</Text>
@@ -101,7 +101,7 @@ export default function ProfileScreen() {
           <Text style={styles.tituloSeccion}>MÓDULO DE ADMINISTRACIÓN</Text>
           <TouchableOpacity
             style={styles.botonModuloAdmin}
-            onPress={() => router.push('/admin' as any)}
+            onPress={() => router.push('/admin')}
           >
             <Ionicons name="settings-outline" size={22} color="#FFF" />
             <Text style={styles.textoBotonModulo}>Panel Admin (Bloqueos, Fijas, Precios)</Text>
@@ -119,7 +119,7 @@ export default function ProfileScreen() {
           style={styles.botonModuloAdmin}
           onPress={async () => {
             await logout();
-            router.replace('/(auth)/login' as any);
+            router.replace('/(auth)/login');
           }}
         >
           <Ionicons name="swap-horizontal-outline" size={20} color="#FFF" />
