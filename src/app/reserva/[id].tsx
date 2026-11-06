@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Share,
+  Linking,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Reserva, Espacio } from '../../tipos';
@@ -77,6 +79,46 @@ export default function ReservationDetailScreen() {
       },
     ]);
   };
+  const handleCompartir = async () => {
+    if (!reserva || !espacio) return;
+    try {
+      const mensaje = 
+        `Reserva confirmada en ${espacio.nombre} (${espacio.complejo}). ` +
+        `Precio: $${espacio.precioPorHora.toLocaleString('es-AR')} en puerta. ` +
+        `Turno #${reserva.id}. Presentamos el QR municipal al ingresar.`;
+
+      await Share.share({
+        message: mensaje,
+        title: `Reserva en ${espacio.nombre}`,
+      });
+    } catch {
+      Alert.alert('Error', 'No se pudo abrir el menú para compartir.');
+    }
+  };
+
+  const handleComoLlegar = async () => {
+    if (!espacio) return;
+    const { latitud, longitud } = espacio.coordenadas;
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${latitud},${longitud}`;
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Error', 'No se pudo abrir la aplicacion de mapas.');
+    }
+  };
+  
+  const handleAgendarCalendario = async () => {
+    if (!reserva || !espacio) return;
+    const titulo = encodeURIComponent(`Turno: ${espacio.nombre}`);
+    const descripcion = encodeURIComponent(`Reserva deportiva en ${espacio.complejo}. Presentar QR al ingresar.`);
+    const ubicacion = encodeURIComponent(`${espacio.complejo}, Villaguay, Entre Rios`);
+    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${titulo}&details=${descripcion}&location=${ubicacion}`;
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Error', 'No se pudo abrir el calendario.');
+    }
+  };
 
   if (cargando) {
     return (
@@ -121,7 +163,21 @@ export default function ReservationDetailScreen() {
 
       {/* Botones de Acción */}
       <View style={styles.accionesWrapper}>
-        <TouchableOpacity style={styles.botonComoLlegar} onPress={() => router.push('/(tabs)/mapa')}>
+        {reserva.estado === 'confirmada' && (
+          <TouchableOpacity style={styles.botonCompartir} onPress={handleCompartir}>
+            <Ionicons name="share-social-outline" size={18} color="#FFF" />
+            <Text style={styles.textoBotonAccion}>Compartir con el equipo</Text>
+          </TouchableOpacity>
+        )}
+
+        {reserva.estado === 'confirmada' && (
+          <TouchableOpacity style={styles.botonCalendario} onPress={handleAgendarCalendario}>
+            <Ionicons name="calendar-outline" size={18} color="#FFF" />
+            <Text style={styles.textoBotonAccion}>Agendar en mi Calendario</Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity style={styles.botonComoLlegar} onPress={handleComoLlegar}>
           <Ionicons name="navigate-outline" size={18} color="#FFF" />
           <Text style={styles.textoBotonAccion}>Cómo Llegar</Text>
         </TouchableOpacity>
@@ -195,6 +251,24 @@ const styles = StyleSheet.create({
   accionesWrapper: {
     gap: 10,
     marginTop: 8,
+  },
+  botonCompartir: {
+    backgroundColor: '#2E7D32',
+    paddingVertical: 14,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },  
+  botonCalendario: {
+    backgroundColor: '#0288D1',
+    paddingVertical: 14,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   botonComoLlegar: {
     backgroundColor: '#1565C0',
