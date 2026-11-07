@@ -15,7 +15,8 @@ import { useRouter } from 'expo-router';
 
 export default function MapScreen() {
   const router = useRouter();
-  const { ubicacionUsuario, permisoDenegado, VILLAGUAY_CENTRO, calcularDistanciaKm } = useLocation();
+  const { ubicacionUsuario, permisoDenegado, errorUbicacion, obtenerUbicacion, VILLAGUAY_CENTRO, calcularDistanciaKm } =
+    useLocation();
 
   const [espacios, setEspacios] = useState<Espacio[]>([]);
   const [espacioSeleccionado, setEspacioSeleccionado] = useState<Espacio | null>(null);
@@ -46,6 +47,20 @@ export default function MapScreen() {
           <Text style={styles.textoPermiso}>
             Ubicación denegada — Podés explorar los predios en el mapa igualmente.
           </Text>
+          <TouchableOpacity onPress={obtenerUbicacion} accessibilityRole="button" accessibilityLabel="Reintentar permiso de ubicación">
+            <Text style={styles.textoReintentarPermiso}>Reintentar</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {!permisoDenegado && errorUbicacion && (
+        <View style={styles.bannerPermiso}>
+          <Ionicons name="navigate-outline" size={16} color="#FFD54F" />
+          <Text style={styles.textoPermiso}>
+            No pudimos obtener tu ubicación (¿GPS apagado?). El mapa funciona igual.
+          </Text>
+          <TouchableOpacity onPress={obtenerUbicacion} accessibilityRole="button" accessibilityLabel="Reintentar obtener ubicación">
+            <Text style={styles.textoReintentarPermiso}>Reintentar</Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -56,7 +71,7 @@ export default function MapScreen() {
         ubicacionUsuario={ubicacionUsuario}
         espacioSeleccionado={espacioSeleccionado}
         onSeleccionar={centrarEnPredio}
-        onAbrir={(espacio) => router.push(`/espacio/${espacio.id}` as any)}
+        onAbrir={(espacio) => router.push(`/espacio/${espacio.id}`)}
       />
 
       {/* Lista Deslizable Inferior de Predios y Distancias en km */}
@@ -119,6 +134,14 @@ const styles = StyleSheet.create({
     color: '#FFECB3',
     fontSize: 12,
     flex: 1,
+  },
+  textoReintentarPermiso: {
+    color: '#FFD54F',
+    fontSize: 12,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+    paddingHorizontal: 6,
+    paddingVertical: 8,
   },
   listaInferior: {
     backgroundColor: '#1E1E1E',

@@ -88,7 +88,9 @@ export const autenticarConBiometria = async (): Promise<{ exito: boolean; dispon
     return { exito: false, disponible: false, mensaje: 'La biometría no está disponible en web.' };
   }
   try {
-    const LocalAuthentication = require('expo-local-authentication');
+    // expo-local-authentication es nativo: se carga después del guard de plataforma.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const LocalAuthentication = require('expo-local-authentication') as typeof import('expo-local-authentication');
     const tieneHardware = await LocalAuthentication.hasHardwareAsync();
     const estaEnrolado = tieneHardware && (await LocalAuthentication.isEnrolledAsync());
     if (!tieneHardware || !estaEnrolado) {

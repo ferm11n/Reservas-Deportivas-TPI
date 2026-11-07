@@ -3,11 +3,13 @@ import { Platform } from 'react-native';
 const getHapticsModule = () => {
   if (Platform.OS === 'web') return null;
   try {
-    const Haptics = require('expo-haptics');
+    // expo-haptics es nativo: se carga recién después del guard de plataforma.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Haptics = require('expo-haptics') as typeof import('expo-haptics');
     if (Haptics && typeof Haptics.notificationAsync === 'function') {
       return Haptics;
     }
-  } catch (e) {
+  } catch {
     // Fallback silencioso si no está disponible el módulo nativo
   }
   return null;

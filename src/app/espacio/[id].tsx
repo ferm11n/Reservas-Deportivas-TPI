@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Directory, File, Paths } from 'expo-file-system';
 import { getKVItem, setKVItem } from '../../bd/kvStore';
+import { ClimaCancha } from '../../componentes/ClimaCancha';
 
 interface ReporteCancha {
   id: string;
@@ -226,9 +227,19 @@ export default function SpaceDetailScreen() {
           </View>
         </View>
       </View>
+      
+      {/* Pronostico del Clima en tiempo real */}
+      <ClimaCancha
+        techado={espacio.techado}
+        latitud={espacio.coordenadas.latitud}
+        longitud={espacio.coordenadas.longitud}
+      />
 
       {/* Reproductor de Video (expo-video) */}
-      <VideoViewer videoUrl={espacio.videoUrl} nombreCancha={espacio.nombre} />
+      <VideoViewer 
+        videoUrl={espacio.videoUrl} 
+        nombreCancha={espacio.nombre} 
+        deporteId={espacio.deporteId} />
 
       {/* Reglas del Lugar */}
       <View style={styles.cardReglas}>
@@ -291,7 +302,7 @@ export default function SpaceDetailScreen() {
       {/* Botón Ver Grilla de Turnos */}
       <TouchableOpacity
         style={styles.botonVerTurnos}
-        onPress={() => router.push('/(tabs)/disponibilidad' as any)}
+        onPress={() => router.push('/(tabs)/disponibilidad')}
       >
         <Text style={styles.textoBotonVerTurnos}>VER GRILLA DE TURNOS LIBRES</Text>
         <Ionicons name="calendar-outline" size={20} color="#FFF" />

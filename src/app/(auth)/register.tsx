@@ -37,7 +37,7 @@ export default function RegisterScreen() {
     } else {
       actualizarUsuario(res.datos.usuario, res.datos.token);
       Alert.alert('¡Cuenta Creada!', 'Tu cuenta ha sido creada exitosamente.');
-      router.replace('/(tabs)' as any);
+      router.replace('/(tabs)');
     }
   };
 

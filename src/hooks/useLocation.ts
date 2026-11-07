@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Platform } from 'react-native';
 import { Coordenadas } from '../tipos';
 
@@ -11,14 +11,13 @@ const VILLAGUAY_CENTRO: Coordenadas = {
 export const useLocation = () => {
   const [ubicacionUsuario, setUbicacionUsuario] = useState<Coordenadas | null>(null);
   const [permisoDenegado, setPermisoDenegado] = useState(false);
+  // Distinto de "denegado": el permiso está, pero el GPS falló o está apagado.
+  const [errorUbicacion, setErrorUbicacion] = useState(false);
   const [cargandoUbicacion, setCargandoUbicacion] = useState(true);
 
-  useEffect(() => {
-    obtenerUbicacion();
-  }, []);
-
-  const obtenerUbicacion = async () => {
+  const obtenerUbicacion = useCallback(async () => {
     setCargandoUbicacion(true);
+    setErrorUbicacion(false);
     if (Platform.OS === 'web') {
       setUbicacionUsuario(VILLAGUAY_CENTRO);
       setCargandoUbicacion(false);
@@ -26,7 +25,9 @@ export const useLocation = () => {
     }
 
     try {
-      const Location = require('expo-location');
+      // expo-location es nativo: se carga recién después del guard de plataforma.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const Location = require('expo-location') as typeof import('expo-location');
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setPermisoDenegado(true);
@@ -44,12 +45,16 @@ export const useLocation = () => {
       });
       setPermisoDenegado(false);
     } catch {
-      setPermisoDenegado(true);
+      setErrorUbicacion(true);
       setUbicacionUsuario(null);
     } finally {
       setCargandoUbicacion(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    obtenerUbicacion();
+  }, [obtenerUbicacion]);
 
   /**
    * Fórmula de Haversine para calcular distancia en km entre dos puntos
@@ -71,6 +76,7 @@ export const useLocation = () => {
   return {
     ubicacionUsuario,
     permisoDenegado,
+    errorUbicacion,
     cargandoUbicacion,
     VILLAGUAY_CENTRO,
     obtenerUbicacion,

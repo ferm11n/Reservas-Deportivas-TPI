@@ -1,7 +1,10 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { Alert } from 'react-native';
 import { Usuario } from '../tipos';
 import { obtenerSesionActual, cerrarSesion, autenticarConBiometria, refrescarUsuario } from '../servicios/auth';
 import { eliminarDispositivoPush, registrarDispositivoPush } from '../servicios/notificaciones';
+import { registrarManejadorSesionExpirada } from '../servicios/api';
+import { eliminarTokenDeSecureStore } from '../bd/secureStore';
 import { useNetwork } from './NetworkContext';
 
 interface AuthContextType {
@@ -65,7 +68,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [cargando, conectado, usuario?.id]);
 
+  const expiracionAvisada = useRef(false);
+
+  useEffect(() => {
+    registrarManejadorSesionExpirada(() => {
+      // Solo se borra el token: las reservas offline (QR) se conservan.
+      void eliminarTokenDeSecureStore().catch(() => undefined);
+      setUsuario(null);
+      setToken(null);
+      // Varias llamadas en vuelo pueden recibir 401 a la vez: un solo aviso.
+      if (!expiracionAvisada.current) {
+        expiracionAvisada.current = true;
+        Alert.alert('Sesión expirada', 'Tu sesión venció. Iniciá sesión de nuevo para continuar.');
+      }
+    });
+    return () => registrarManejadorSesionExpirada(null);
+  }, []);
+
   const actualizarUsuario = (u: Usuario | null, t?: string | null) => {
+    if (u) expiracionAvisada.current = false;
     setUsuario(u);
     if (t !== undefined) setToken(t);
   };

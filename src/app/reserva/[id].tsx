@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Share,
+  Linking,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Reserva, Espacio } from '../../tipos';
@@ -23,15 +25,14 @@ export default function ReservationDetailScreen() {
   const [reserva, setReserva] = useState<Reserva | null>(null);
   const [espacio, setEspacio] = useState<Espacio | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [cancelando, setCancelando] = useState(false);
 
-  useEffect(() => {
-    if (id) cargarDetalle();
-  }, [id]);
+  const usuarioId = usuario?.id ?? null;
 
-  const cargarDetalle = async () => {
+  const cargarDetalle = useCallback(async () => {
     setCargando(true);
-    if (usuario) {
-      const resultado = await obtenerReserva(id, usuario.id);
+    if (usuarioId) {
+      const resultado = await obtenerReserva(id, usuarioId);
       if ('datos' in resultado) {
         setReserva(resultado.datos);
         const resEsp = await obtenerEspacioPorId(resultado.datos.espacioId);
@@ -41,7 +42,11 @@ export default function ReservationDetailScreen() {
       }
     }
     setCargando(false);
-  };
+  }, [id, usuarioId]);
+
+  useEffect(() => {
+    if (id) cargarDetalle();
+  }, [id, cargarDetalle]);
 
   const handleCancelar = () => {
     if (!reserva) return;
@@ -58,16 +63,61 @@ export default function ReservationDetailScreen() {
         text: 'Sí, Cancelar',
         style: 'destructive',
         onPress: async () => {
-          const resultado = await cancelarReserva(reserva.id);
-          if ('error' in resultado) {
-            Alert.alert('No se pudo cancelar', resultado.error.mensaje);
-          } else {
-            Alert.alert('Reserva Cancelada', 'La reserva ha sido cancelada.');
-            cargarDetalle();
+          setCancelando(true);
+          try {
+            const resultado = await cancelarReserva(reserva.id);
+            if ('error' in resultado) {
+              Alert.alert('No se pudo cancelar', resultado.error.mensaje);
+            } else {
+              Alert.alert('Reserva Cancelada', 'La reserva ha sido cancelada.');
+              cargarDetalle();
+            }
+          } finally {
+            setCancelando(false);
           }
         },
       },
     ]);
+  };
+  const handleCompartir = async () => {
+    if (!reserva || !espacio) return;
+    try {
+      const mensaje = 
+        `Reserva confirmada en ${espacio.nombre} (${espacio.complejo}). ` +
+        `Precio: $${espacio.precioPorHora.toLocaleString('es-AR')} en puerta. ` +
+        `Turno #${reserva.id}. Presentamos el QR municipal al ingresar.`;
+
+      await Share.share({
+        message: mensaje,
+        title: `Reserva en ${espacio.nombre}`,
+      });
+    } catch {
+      Alert.alert('Error', 'No se pudo abrir el menú para compartir.');
+    }
+  };
+
+  const handleComoLlegar = async () => {
+    if (!espacio) return;
+    const { latitud, longitud } = espacio.coordenadas;
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${latitud},${longitud}`;
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Error', 'No se pudo abrir la aplicacion de mapas.');
+    }
+  };
+  
+  const handleAgendarCalendario = async () => {
+    if (!reserva || !espacio) return;
+    const titulo = encodeURIComponent(`Turno: ${espacio.nombre}`);
+    const descripcion = encodeURIComponent(`Reserva deportiva en ${espacio.complejo}. Presentar QR al ingresar.`);
+    const ubicacion = encodeURIComponent(`${espacio.complejo}, Villaguay, Entre Rios`);
+    const url = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${titulo}&details=${descripcion}&location=${ubicacion}`;
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert('Error', 'No se pudo abrir el calendario.');
+    }
   };
 
   if (cargando) {
@@ -113,13 +163,31 @@ export default function ReservationDetailScreen() {
 
       {/* Botones de Acción */}
       <View style={styles.accionesWrapper}>
-        <TouchableOpacity style={styles.botonComoLlegar} onPress={() => router.push('/(tabs)/mapa' as any)}>
+        {reserva.estado === 'confirmada' && (
+          <TouchableOpacity style={styles.botonCompartir} onPress={handleCompartir}>
+            <Ionicons name="share-social-outline" size={18} color="#FFF" />
+            <Text style={styles.textoBotonAccion}>Compartir con el equipo</Text>
+          </TouchableOpacity>
+        )}
+
+        {reserva.estado === 'confirmada' && (
+          <TouchableOpacity style={styles.botonCalendario} onPress={handleAgendarCalendario}>
+            <Ionicons name="calendar-outline" size={18} color="#FFF" />
+            <Text style={styles.textoBotonAccion}>Agendar en mi Calendario</Text>
+          </TouchableOpacity>
+        )}
+
+        <TouchableOpacity style={styles.botonComoLlegar} onPress={handleComoLlegar}>
           <Ionicons name="navigate-outline" size={18} color="#FFF" />
           <Text style={styles.textoBotonAccion}>Cómo Llegar</Text>
         </TouchableOpacity>
 
         {reserva.estado === 'confirmada' && (
-          <TouchableOpacity style={styles.botonCancelar} onPress={handleCancelar}>
+          <TouchableOpacity
+            style={[styles.botonCancelar, cancelando && styles.botonDeshabilitado]}
+            disabled={cancelando}
+            onPress={handleCancelar}
+          >
             <Ionicons name="close-circle-outline" size={18} color="#FF8A80" />
             <Text style={styles.textoBotonCancelar}>Cancelar Reserva</Text>
           </TouchableOpacity>
@@ -184,6 +252,24 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 8,
   },
+  botonCompartir: {
+    backgroundColor: '#2E7D32',
+    paddingVertical: 14,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },  
+  botonCalendario: {
+    backgroundColor: '#0288D1',
+    paddingVertical: 14,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
   botonComoLlegar: {
     backgroundColor: '#1565C0',
     paddingVertical: 14,
@@ -197,6 +283,9 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 14,
     fontWeight: '700',
+  },
+  botonDeshabilitado: {
+    opacity: 0.5,
   },
   botonCancelar: {
     backgroundColor: '#B71C1C33',

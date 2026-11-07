@@ -10,6 +10,7 @@ import {
   RespuestaApi,
 } from '../tipos';
 import { pedir, esErrorDeRed, leerIdDeTurno } from './api';
+import { cancelarRecordatorioTurno } from './notificaciones';
 import {
   guardarReservaOffline,
   guardarReservasOffline,
@@ -155,7 +156,16 @@ export const obtenerReserva = async (id: string, usuarioId?: string): Promise<Re
 /** POST /reservas/<id>/cancelacion. Fuera de plazo la API responde CANCELACION_FUERA_DE_PLAZO. */
 export const cancelarReserva = async (reservaId: string): Promise<RespuestaApi<Reserva>> => {
   const res = await pedir<Reserva>(`/reservas/${reservaId}/cancelacion`, { metodo: 'POST' });
-  if ('datos' in res) await guardarReservaOffline(res.datos);
+  if ('datos' in res) {
+    await guardarReservaOffline(res.datos);
+    // El recordatorio programado ya no corresponde; su falla no debe
+    // impedir que la cancelación se reporte como exitosa.
+    try {
+      await cancelarRecordatorioTurno(reservaId);
+    } catch (error) {
+      console.warn('No se pudo cancelar el recordatorio del turno:', error);
+    }
+  }
   return res;
 };
 
