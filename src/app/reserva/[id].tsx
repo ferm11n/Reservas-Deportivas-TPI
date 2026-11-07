@@ -1,19 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
   ActivityIndicator,
   Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Reserva, Espacio } from '../../tipos';
-import { obtenerReserva, obtenerEspacioPorId, cancelarReserva } from '../../servicios/reservas';
 import { QrViewer } from '../../componentes/QrViewer';
 import { useAuth } from '../../context/AuthContext';
-import { Ionicons } from '@expo/vector-icons';
+import { generarComprobantePDF } from '../../servicios/comprobantepdf';
+import { cancelarReserva, obtenerEspacioPorId, obtenerReserva } from '../../servicios/reservas';
+import { Espacio, Reserva } from '../../tipos';
 
 export default function ReservationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -23,6 +24,7 @@ export default function ReservationDetailScreen() {
   const [reserva, setReserva] = useState<Reserva | null>(null);
   const [espacio, setEspacio] = useState<Espacio | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [generandoPdf, setGenerandoPdf] = useState(false);
 
   useEffect(() => {
     if (id) cargarDetalle();
@@ -41,6 +43,13 @@ export default function ReservationDetailScreen() {
       }
     }
     setCargando(false);
+  };
+
+  const handleDescargarPdf = async () => {
+    if (!reserva || !espacio || !usuario) return;
+    setGenerandoPdf(true);
+    await generarComprobantePDF(reserva, espacio, usuario);
+    setGenerandoPdf(false);
   };
 
   const handleCancelar = () => {
@@ -110,6 +119,18 @@ export default function ReservationDetailScreen() {
           </Text>
         </View>
       )}
+      {reserva.estado === 'confirmada' && (
+          <TouchableOpacity 
+            style={styles.botonPdf} 
+            onPress={handleDescargarPdf}
+            disabled={generandoPdf}
+          >
+            <Ionicons name="document-text-outline" size={18} color="#FFF" />
+            <Text style={styles.textoBotonAccion}>
+              {generandoPdf ? 'Generando Comprobante...' : 'Descargar Comprobante PDF'}
+            </Text>
+          </TouchableOpacity>
+        )}
 
       {/* Botones de Acción */}
       <View style={styles.accionesWrapper}>
@@ -183,6 +204,15 @@ const styles = StyleSheet.create({
   accionesWrapper: {
     gap: 10,
     marginTop: 8,
+  },
+  botonPdf: {
+  backgroundColor: '#455A64',
+  paddingVertical: 14,
+  borderRadius: 10,
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 8,
   },
   botonComoLlegar: {
     backgroundColor: '#1565C0',

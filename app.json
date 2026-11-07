@@ -91,7 +91,8 @@
       "@maplibre/maplibre-react-native",
       "expo-image",
       "expo-web-browser",
-      "expo-asset"
+      "expo-asset",
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true
