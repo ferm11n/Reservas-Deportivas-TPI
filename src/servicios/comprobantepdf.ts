@@ -1,5 +1,4 @@
 import * as Print from 'expo-print';
-import * as Sharing from 'expo-sharing';
 import { Alert } from 'react-native';
 import { Espacio, Reserva, Usuario } from '../tipos';
 import { leerIdDeTurno } from './api';
@@ -125,21 +124,10 @@ export const generarComprobantePDF = async (
       </body>
       </html>
     `;
-    // Generar archivo PDF temporal
-    const { uri } = await Print.printToFileAsync({
+   // Abre directamente la vista previa oficial con el botón "Guardar como PDF"
+    await Print.printAsync({
       html: htmlContent,
-      base64: false,
     });
-    // Abrir menú nativo para compartir o guardar
-    if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(uri, {
-        UTI: '.pdf',
-        mimeType: 'application/pdf',
-        dialogTitle: `Comprobante de Reserva - ${espacio.nombre}`,
-      });
-    } else {
-      await Print.printAsync({ html: htmlContent });
-    }
   } catch (error) {
     console.error('Error al generar el PDF:', error);
     Alert.alert('Error', 'No se pudo generar el comprobante PDF.');
