@@ -53,7 +53,9 @@ quedar anidada dentro del proyecto móvil.
    `S3_SECRET_ACCESS_KEY`.
 3. **Crear el servicio de Render:** importar el blueprint `render.yaml` del repositorio de la
    API. Completar en Render las variables secretas `DB_URL`, `SUPABASE_PROYECTO`, `S3_REGION`,
-   `S3_BUCKET`, `S3_ACCESS_KEY_ID` y `S3_SECRET_ACCESS_KEY`. El blueprint genera `JWT_SECRETO`.
+   `S3_BUCKET`, `S3_ACCESS_KEY_ID` y `S3_SECRET_ACCESS_KEY`. El blueprint configura
+   `DB_MOTOR=postgres` (necesario para que las entidades usen tipos de columna compatibles) y
+   genera `JWT_SECRETO`.
 4. **Revisar el modo de datos:** el blueprint tiene `SEMBRAR_SI_VACIA=true`. En una base nueva
    esto carga datos y cuentas de demo documentados por la API, incluida una cuenta de
    administración con contraseña conocida por quienes tengan el código. No expongas esa
