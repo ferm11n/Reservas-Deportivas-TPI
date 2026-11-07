@@ -16,6 +16,7 @@ import { obtenerReserva, obtenerEspacioPorId, cancelarReserva } from '../../serv
 import { QrViewer } from '../../componentes/QrViewer';
 import { useAuth } from '../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { generarComprobantePDF } from '../../servicios/comprobantepdf';
 
 export default function ReservationDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -26,6 +27,7 @@ export default function ReservationDetailScreen() {
   const [espacio, setEspacio] = useState<Espacio | null>(null);
   const [cargando, setCargando] = useState(true);
   const [cancelando, setCancelando] = useState(false);
+  const [generandoPdf, setGenerandoPdf] = useState(false);
 
   const usuarioId = usuario?.id ?? null;
 
@@ -47,6 +49,13 @@ export default function ReservationDetailScreen() {
   useEffect(() => {
     if (id) cargarDetalle();
   }, [id, cargarDetalle]);
+
+  const handleDescargarPdf = async () => {
+    if (!reserva || !espacio || !usuario) return;
+    setGenerandoPdf(true);
+    await generarComprobantePDF(reserva, espacio, usuario);
+    setGenerandoPdf(false);
+  };
 
   const handleCancelar = () => {
     if (!reserva) return;
@@ -79,6 +88,7 @@ export default function ReservationDetailScreen() {
       },
     ]);
   };
+
   const handleCompartir = async () => {
     if (!reserva || !espacio) return;
     try {
@@ -167,6 +177,19 @@ export default function ReservationDetailScreen() {
           <TouchableOpacity style={styles.botonCompartir} onPress={handleCompartir}>
             <Ionicons name="share-social-outline" size={18} color="#FFF" />
             <Text style={styles.textoBotonAccion}>Compartir con el equipo</Text>
+          </TouchableOpacity>
+        )}
+
+        {reserva.estado === 'confirmada' && (
+          <TouchableOpacity 
+            style={styles.botonPdf} 
+            onPress={handleDescargarPdf}
+            disabled={generandoPdf}
+          >
+            <Ionicons name="document-text-outline" size={18} color="#FFF" />
+            <Text style={styles.textoBotonAccion}>
+              {generandoPdf ? 'Generando Comprobante...' : 'Descargar Comprobante PDF'}
+            </Text>
           </TouchableOpacity>
         )}
 
@@ -260,7 +283,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-  },  
+  },
+  botonPdf: {
+    backgroundColor: '#455A64',
+    paddingVertical: 14,
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
   botonCalendario: {
     backgroundColor: '#0288D1',
     paddingVertical: 14,

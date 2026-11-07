@@ -10,11 +10,12 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { Espacio, Deporte } from '../../tipos';
 import { obtenerEspacios, obtenerDeportes } from '../../servicios/reservas';
 import { marcarFavorito } from '../../servicios/auth';
 import { TarjetaEspacio, iconoDeporte } from '../../componentes/TarjetaEspacio';
-import { Ionicons } from '@expo/vector-icons';
+import { setKVItem } from '../../bd/kvStore';
 import { useAuth } from '../../context/AuthContext';
 
 export default function CatalogScreen() {
@@ -29,6 +30,7 @@ export default function CatalogScreen() {
   const [deporteSeleccionado, setDeporteSeleccionado] = useState<string | null>(null);
   const [complejoSeleccionado, setComplejoSeleccionado] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
+  const [soloFavoritos, setSoloFavoritos] = useState(false);
 
   const cargarDatos = useCallback(async (esRefresco = false) => {
     // Al refrescar no se enciende "cargando": eso desmontaría la FlatList
@@ -80,6 +82,7 @@ export default function CatalogScreen() {
       ? usuario.espaciosFavoritos.filter((id) => id !== espacioId)
       : [...usuario.espaciosFavoritos, espacioId];
 
+    void setKVItem(`favoritos_${usuario.id}`, JSON.stringify(nuevosFavs));
     actualizarUsuario({ ...usuario, espaciosFavoritos: nuevosFavs });
   };
 
@@ -90,7 +93,8 @@ export default function CatalogScreen() {
       !busqueda ||
       esp.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
       esp.complejo.toLowerCase().includes(busqueda.toLowerCase());
-    return matchDeporte && matchComplejo && matchBusqueda;
+      const matchFavorito = !soloFavoritos || (usuario?.espaciosFavoritos.includes(esp.id) ?? false);
+    return matchDeporte && matchComplejo && matchBusqueda && matchFavorito;
   });
 
   const complejosDisponibles = Array.from(new Set(espacios.map((e) => e.complejo)));
@@ -117,6 +121,19 @@ export default function CatalogScreen() {
             <Ionicons name="close-circle" size={18} color="#888" />
           </TouchableOpacity>
         )}
+        <TouchableOpacity
+          style={[styles.botonFiltroFav, soloFavoritos && styles.botonFiltroFavActivo]}
+          onPress={() => setSoloFavoritos(!soloFavoritos)}
+        >
+          <Ionicons
+            name={soloFavoritos ? 'star' : 'star-outline'}
+            size={16}
+            color={soloFavoritos ? '#121212' : '#FFC107'}
+          />
+          <Text style={[styles.textoFiltroFav, soloFavoritos && styles.textoFiltroFavActivo]}>
+            {usuario?.espaciosFavoritos?.length || 0}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Filtros por Deporte */}
@@ -324,5 +341,37 @@ const styles = StyleSheet.create({
   textoBotonReintentar: {
     color: '#FFFFFF',
     fontWeight: '700',
+  },
+  searchBarWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 14,
+    marginTop: 12,
+    marginBottom: 8,
+    gap: 8,
+  },
+  botonFiltroFav: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E1E1E',
+    borderWidth: 1,
+    borderColor: '#FFC10755',
+    height: 44,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    gap: 6,
+  },
+  botonFiltroFavActivo: {
+    backgroundColor: '#FFC107',
+    borderColor: '#FFC107',
+  },
+  textoFiltroFav: {
+    color: '#FFC107',
+    fontWeight: '800',
+    fontSize: 13,
+  },
+  textoFiltroFavActivo: {
+    color: '#121212',
+    fontWeight: '800',
   },
 });
