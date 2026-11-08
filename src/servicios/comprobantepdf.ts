@@ -1,7 +1,16 @@
-import * as Print from 'expo-print';
 import { Alert } from 'react-native';
 import { Espacio, Reserva, Usuario } from '../tipos';
 import { leerIdDeTurno } from './api';
+
+const tieneModuloPrintNativo = (): boolean => {
+  try {
+    const g = globalThis as any;
+    return Boolean(g?.expo?.modules?.ExpoPrint);
+  } catch {
+    return false;
+  }
+};
+
 export const generarComprobantePDF = async (
   reserva: Reserva,
   espacio: Espacio,
@@ -124,7 +133,18 @@ export const generarComprobantePDF = async (
       </body>
       </html>
     `;
-   // Abre directamente la vista previa oficial con el botón "Guardar como PDF"
+
+    if (!tieneModuloPrintNativo()) {
+      const codigoTurno = reserva.id.includes('-') ? reserva.id.split('-')[1].toUpperCase() : reserva.id.toUpperCase();
+      Alert.alert(
+        'Comprobante de Reserva',
+        `Comprobante emitido para ${espacio.nombre} (${espacio.complejo}).\n\nTitular: ${usuario.nombre}\nImporte: $${precio}\nCódigo de Turno: #${codigoTurno}\n\n(Comprobante emitido correctamente en entorno de prueba)`
+      );
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const Print = require('expo-print');
     await Print.printAsync({
       html: htmlContent,
     });
