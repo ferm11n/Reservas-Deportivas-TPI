@@ -9,48 +9,54 @@ import { Reserva } from '../tipos';
  * - cache: catálogo de espacios y deportes (JSON por clave)
  */
 
-let dbInstance: SQLiteDatabase | null = null;
+let dbPromise: Promise<SQLiteDatabase | null> | null = null;
 
 // Respaldo en memoria para web o si SQLite no está disponible
 const memoriaReservas: Reserva[] = [];
 const memoriaCache: Record<string, string> = {};
 
-export const inicializarBaseDeDatos = async (): Promise<void> => {
-  if (Platform.OS === 'web' || dbInstance) return;
-  try {
-    // expo-sqlite es nativo: se carga después del guard de plataforma.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const SQLite = require('expo-sqlite') as typeof import('expo-sqlite');
-    dbInstance = await SQLite.openDatabaseAsync('reservas_vgy.db');
-    await dbInstance.execAsync(`
-      PRAGMA journal_mode = WAL;
-      CREATE TABLE IF NOT EXISTS reservas (
-        id TEXT PRIMARY KEY NOT NULL,
-        turnoId TEXT NOT NULL,
-        espacioId TEXT NOT NULL,
-        usuarioId TEXT NOT NULL,
-        cantidadPersonas INTEGER NOT NULL,
-        codigoQr TEXT NOT NULL,
-        estado TEXT NOT NULL,
-        ingresoEn TEXT,
-        creadaEn TEXT NOT NULL,
-        cancelableHasta TEXT NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS cache (
-        clave TEXT PRIMARY KEY NOT NULL,
-        json TEXT NOT NULL,
-        actualizadoEn TEXT NOT NULL
-      );
-    `);
-  } catch (error) {
-    console.warn('SQLite no disponible, uso memoria:', error);
-    dbInstance = null;
-  }
+export const inicializarBaseDeDatos = async (): Promise<SQLiteDatabase | null> => {
+  if (Platform.OS === 'web') return null;
+  if (dbPromise) return dbPromise;
+
+  dbPromise = (async () => {
+    try {
+      // expo-sqlite es nativo: se carga después del guard de plataforma.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const SQLite = require('expo-sqlite') as typeof import('expo-sqlite');
+      const base = await SQLite.openDatabaseAsync('reservas_vgy.db');
+      await base.execAsync(`
+        PRAGMA journal_mode = WAL;
+        CREATE TABLE IF NOT EXISTS reservas (
+          id TEXT PRIMARY KEY NOT NULL,
+          turnoId TEXT NOT NULL,
+          espacioId TEXT NOT NULL,
+          usuarioId TEXT NOT NULL,
+          cantidadPersonas INTEGER NOT NULL,
+          codigoQr TEXT NOT NULL,
+          estado TEXT NOT NULL,
+          ingresoEn TEXT,
+          creadaEn TEXT NOT NULL,
+          cancelableHasta TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS cache (
+          clave TEXT PRIMARY KEY NOT NULL,
+          json TEXT NOT NULL,
+          actualizadoEn TEXT NOT NULL
+        );
+      `);
+      return base;
+    } catch (error) {
+      console.warn('SQLite no disponible, uso memoria:', error);
+      return null;
+    }
+  })();
+
+  return dbPromise;
 };
 
 const db = async () => {
-  if (!dbInstance) await inicializarBaseDeDatos();
-  return dbInstance;
+  return await inicializarBaseDeDatos();
 };
 
 // ---------- Reservas ----------
