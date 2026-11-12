@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { Alert } from 'react-native';
 import { Usuario } from '../tipos';
 import { obtenerSesionActual, cerrarSesion, autenticarConBiometria, refrescarUsuario } from '../servicios/auth';
@@ -7,28 +7,43 @@ import { registrarManejadorSesionExpirada } from '../servicios/api';
 import { eliminarTokenDeSecureStore } from '../bd/secureStore';
 import { useNetwork } from './NetworkContext';
 
+export interface ResultadoBiometria {
+  exito: boolean;
+  disponible: boolean;
+  mensaje: string;
+}
+
 interface AuthContextType {
   usuario: Usuario | null;
   token: string | null;
   cargando: boolean;
+  requiereReingreso: boolean;
   actualizarUsuario: (u: Usuario | null, token?: string | null) => void;
+  completarReingreso: () => void;
   logout: () => Promise<void>;
-  verificarBiometria: () => Promise<boolean>;
+  verificarBiometria: () => Promise<ResultadoBiometria>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   usuario: null,
   token: null,
   cargando: true,
+  requiereReingreso: false,
   actualizarUsuario: () => {},
+  completarReingreso: () => {},
   logout: async () => {},
-  verificarBiometria: async () => false,
+  verificarBiometria: async () => ({
+    exito: false,
+    disponible: false,
+    mensaje: 'Contexto de autenticación no inicializado.',
+  }),
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
+  const [requiereReingreso, setRequiereReingreso] = useState(false);
   const { conectado } = useNetwork();
   const registroPushEnCurso = useRef<Promise<void> | null>(null);
 
@@ -38,6 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!activa) return;
       setUsuario(u);
       setToken(t);
+      if (u && t) setRequiereReingreso(true);
       setCargando(false);
       if (u && t) {
         const actualizado = await refrescarUsuario();
@@ -76,6 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       void eliminarTokenDeSecureStore().catch(() => undefined);
       setUsuario(null);
       setToken(null);
+      setRequiereReingreso(false);
       // Varias llamadas en vuelo pueden recibir 401 a la vez: un solo aviso.
       if (!expiracionAvisada.current) {
         expiracionAvisada.current = true;
@@ -87,6 +104,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const actualizarUsuario = (u: Usuario | null, t?: string | null) => {
     if (u) expiracionAvisada.current = false;
+    if (!u || t) setRequiereReingreso(false);
     setUsuario(u);
     if (t !== undefined) setToken(t);
   };
@@ -108,12 +126,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await cerrarSesion();
     setUsuario(null);
     setToken(null);
+    setRequiereReingreso(false);
   };
 
-  const verificarBiometria = async (): Promise<boolean> => {
-    const res = await autenticarConBiometria();
-    return res.exito;
-  };
+  const completarReingreso = useCallback(() => {
+    setRequiereReingreso(false);
+  }, []);
+
+  const verificarBiometria = useCallback((): Promise<ResultadoBiometria> => {
+    return autenticarConBiometria();
+  }, []);
 
   return (
     <AuthContext.Provider
@@ -121,7 +143,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         usuario,
         token,
         cargando,
+        requiereReingreso,
         actualizarUsuario,
+        completarReingreso,
         logout,
         verificarBiometria,
       }}

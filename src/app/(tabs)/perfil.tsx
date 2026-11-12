@@ -16,11 +16,11 @@ export default function ProfileScreen() {
   const { usuario, logout, verificarBiometria } = useAuth();
 
   const handleProbadaBiometrica = async () => {
-    const exito = await verificarBiometria();
-    if (exito) {
-      Alert.alert('Biometría Verificada', '¡Huella o rostro reconocido correctamente!');
+    const res = await verificarBiometria();
+    if (res.exito) {
+      Alert.alert('Biometría Verificada', res.mensaje);
     } else {
-      Alert.alert('Atención', 'No se pudo verificar la identidad biométrica.');
+      Alert.alert(res.disponible ? 'Atención' : 'Biometría no disponible', res.mensaje);
     }
   };
 
