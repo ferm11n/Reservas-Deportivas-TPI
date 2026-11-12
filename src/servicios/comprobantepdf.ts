@@ -2,9 +2,17 @@ import { Alert } from 'react-native';
 import { Espacio, Reserva, Usuario } from '../tipos';
 import { leerIdDeTurno } from './api';
 
+type GlobalConExpo = typeof globalThis & {
+  expo?: {
+    modules?: {
+      ExpoPrint?: unknown;
+    };
+  };
+};
+
 const tieneModuloPrintNativo = (): boolean => {
   try {
-    const g = globalThis as any;
+    const g = globalThis as GlobalConExpo;
     return Boolean(g?.expo?.modules?.ExpoPrint);
   } catch {
     return false;

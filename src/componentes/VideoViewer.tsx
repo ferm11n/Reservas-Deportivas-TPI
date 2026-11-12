@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { useVideoPlayer, VideoView } from 'expo-video';
+import { useVideoPlayer, VideoView, type VideoSource } from 'expo-video';
 
 interface Props {
   videoUrl?: string | null;
@@ -9,8 +9,8 @@ interface Props {
 }
 
 // Video local histórico de respaldo
-const VIDEO_DEFAULT = require('../../assets/videos/videoCancha.mp4');
-const VIDEOS_LOCALES: Record<string, any> = {
+const VIDEO_DEFAULT: VideoSource = require('../../assets/videos/videoCancha.mp4');
+const VIDEOS_LOCALES: Record<string, VideoSource> = {
   'dep-futbol5': require('../../assets/videos/futbol5.mp4'),
   'dep-basquet': require('../../assets/videos/basquet.mp4'),
   'dep-tenis': require('../../assets/videos/tenis.mp4'),
