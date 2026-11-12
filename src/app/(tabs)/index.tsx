@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -86,16 +86,20 @@ export default function CatalogScreen() {
     actualizarUsuario({ ...usuario, espaciosFavoritos: nuevosFavs });
   };
 
-  const espaciosFiltrados = espacios.filter((esp) => {
-    const matchDeporte = !deporteSeleccionado || esp.deporteId === deporteSeleccionado;
-    const matchComplejo = !complejoSeleccionado || esp.complejo === complejoSeleccionado;
-    const matchBusqueda =
-      !busqueda ||
-      esp.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-      esp.complejo.toLowerCase().includes(busqueda.toLowerCase());
-      const matchFavorito = !soloFavoritos || (usuario?.espaciosFavoritos.includes(esp.id) ?? false);
-    return matchDeporte && matchComplejo && matchBusqueda && matchFavorito;
-  });
+  const espaciosFiltrados = useMemo(
+    () =>
+      espacios.filter((esp) => {
+        const matchDeporte = !deporteSeleccionado || esp.deporteId === deporteSeleccionado;
+        const matchComplejo = !complejoSeleccionado || esp.complejo === complejoSeleccionado;
+        const matchBusqueda =
+          !busqueda ||
+          esp.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
+          esp.complejo.toLowerCase().includes(busqueda.toLowerCase());
+        const matchFavorito = !soloFavoritos || (usuario?.espaciosFavoritos.includes(esp.id) ?? false);
+        return matchDeporte && matchComplejo && matchBusqueda && matchFavorito;
+      }),
+    [espacios, deporteSeleccionado, complejoSeleccionado, busqueda, soloFavoritos, usuario?.espaciosFavoritos]
+  );
 
   const complejosDisponibles = Array.from(new Set(espacios.map((e) => e.complejo)));
 
